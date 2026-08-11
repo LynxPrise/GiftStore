@@ -122,8 +122,8 @@ function renderOrderRows($orders_list) {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap" rel="stylesheet">
     
-    <!-- html2pdf Library for generating PDF receipts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- jsPDF for generating dependable PDF receipts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         :root {
@@ -252,17 +252,21 @@ function renderOrderRows($orders_list) {
         .full-width { grid-column: span 2; }
         textarea#notes { width: 100%; height: 70px; margin-top: 5px; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
 
-       /* Container to keep receipt hidden visually while allowing html2canvas to render */
-  .receipt-hidden-wrapper {
-      height: 0;
-      overflow: hidden;
-      position: relative;
-  }
-
+       /* Keep the receipt off-screen but still fully rendered for html2pdf */
   #printable-receipt {
+      position: absolute;
+      left: -9999px;
+      top: 0;
       width: 140mm; /* A5 width */
+      min-height: 200mm;
       background: #ffffff;
+      color: #3b2219;
       box-sizing: border-box;
+      padding: 20px;
+      visibility: visible;
+      pointer-events: none;
+      z-index: 0;
+      display: block;
   }
     </style>
 </head>
@@ -339,10 +343,8 @@ function renderOrderRows($orders_list) {
 
     
 
-    <!-- Hidden Printable Receipt Wrapper -->
-    <div class="receipt-hidden-wrapper">
-        <div id="printable-receipt"></div>
-    </div>
+    <!-- Hidden Printable Receipt -->
+    <div id="printable-receipt"></div>
 
     <script>
         const STORE_LAT = 10.7936; 
@@ -464,106 +466,154 @@ function renderOrderRows($orders_list) {
         }
 
       function downloadReceipt(o, isDelivery, recipientName, recipientContact, displayAddress, cleanCardMessage) {
-    const receiptContainer = document.getElementById('printable-receipt');
-    
-    // Grab latest live notes value from textarea if present
     const notesInput = document.getElementById('notes');
     const cleanNotes = notesInput ? notesInput.value : (o.notes || '');
 
     const lat = o.latitude || o.lat || null;
     const lng = o.longitude || o.lng || o.long || null;
 
-    let directionsUrl = '';
-    if (lat && lng) {
-        directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${STORE_LAT},${STORE_LNG}&destination=${lat},${lng}&travelmode=driving`;
-    } else {
-        directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(STORE_ADDRESS)}&destination=${encodeURIComponent(displayAddress)}&travelmode=driving`;
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert('PDF library is still loading. Please try again in a moment.');
+        return;
     }
 
-    receiptContainer.innerHTML = `
-        <div style="padding: 20px; font-family: 'Plus Jakarta Sans', sans-serif; color: #3b2219; background: #ffffff;">
-            <!-- Header -->
-            <div style="text-align: center; border-bottom: 2px dashed #d81b60; padding-bottom: 10px; margin-bottom: 12px;">
-                <h1 style="color: #3b2219; margin: 0; font-size: 24px; font-family: 'Playfair Display', serif;">Lynx<span style="color: #d81b60;">Prise</span></h1>
-                <p style="margin: 2px 0 0 0; font-size: 12px; color: #785a50; font-weight: 600;">OFFICIAL ORDER RECEIPT</p>
-                <p style="margin: 2px 0 0 0; font-size: 10px; color: #785a50;">${STORE_ADDRESS}</p>
-            </div>
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' });
 
-            <!-- General Order Details -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px;">
-                <tr>
-                    <td style="padding: 3px 0;"><strong>Order ID:</strong> #${o.id}</td>
-                    <td style="padding: 3px 0; text-align: right;"><strong>Fulfillment:</strong> <span style="color: #d81b60; font-weight: bold;">${isDelivery ? 'Delivery' : 'Pickup'}</span></td>
-                </tr>
-                <tr>
-                    <td style="padding: 3px 0;"><strong>Customer Name:</strong> ${o.full_name || 'N/A'}</td>
-                    <td style="padding: 3px 0; text-align: right;"><strong>Customer Contact:</strong> ${o.phone_number || 'N/A'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 3px 0;" colspan="2"><strong>Pickup / Delivery Date:</strong> ${o.date_of_pickup || 'N/A'}</td>
-                </tr>
-            </table>
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 12;
+    let y = 12;
 
-            <!-- Product Items Table -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; border: 1px solid #e8c3b0;">
-                <thead>
-                    <tr style="background-color: #fdeee8; color: #d81b60; font-size: 11px; text-align: left;">
-                        <th style="padding: 6px 8px; border-bottom: 1px solid #e8c3b0;">Item Description</th>
-                        <th style="padding: 6px 8px; border-bottom: 1px solid #e8c3b0; text-align: right;">Price</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="padding: 8px; font-size: 12px;">${o.product_name || 'N/A'}</td>
-                        <td style="padding: 8px; font-size: 12px; text-align: right;">₱${parseFloat(o.price || 0).toFixed(2)}</td>
-                    </tr>
-                </tbody>
-            </table>
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('LynxPrise', margin, y);
 
-            <!-- Delivery Details Section (If Applicable) -->
-            ${isDelivery ? `
-                <div style="background-color: #fff9f6; border: 1px solid #e8c3b0; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 11px; line-height: 1.4;">
-                    <p style="margin: 0 0 4px 0; color: #d81b60; font-weight: bold; text-transform: uppercase;">--- Delivery Information ---</p>
-                    <p style="margin: 2px 0;"><strong>Recipient Name:</strong> ${recipientName || 'N/A'}</p>
-                    <p style="margin: 2px 0;"><strong>Recipient Contact:</strong> ${recipientContact || 'N/A'}</p>
-                    <p style="margin: 2px 0;"><strong>Address:</strong> ${displayAddress}</p>
-                    <p style="margin: 2px 0;"><strong>Coordinates:</strong> ${lat && lng ? `${lat}, ${lng}` : 'Not specified'}</p>
-                    <p style="margin: 2px 0;"><strong>Google Maps Route:</strong> <a href="${directionsUrl}" style="color:#1a73e8;">Open Route Directions</a></p>
-                    ${cleanCardMessage ? `<p style="margin: 6px 0 0 0; background: #fff; padding: 6px; border-radius: 4px; border: 1px dashed #e8c3b0;"><strong>Card Message / Instructions:</strong> "${cleanCardMessage}"</p>` : ''}
-                </div>
-            ` : ''}
+    y += 7;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('OFFICIAL ORDER RECEIPT', margin, y);
+    y += 5;
+    doc.text(STORE_ADDRESS, margin, y);
+    y += 10;
 
-            <!-- Admin Notes Section -->
-            ${cleanNotes ? `
-                <div style="background-color: #f8f8f8; border: 1px solid #ddd; padding: 8px; border-radius: 6px; margin-bottom: 12px; font-size: 11px;">
-                    <strong>Admin Notes:</strong> ${cleanNotes}
-                </div>
-            ` : ''}
+    // Divider
+    doc.setDrawColor(217, 97, 139);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
 
-            <!-- Total Section -->
-            <div style="text-align: right; border-top: 1px solid #e8c3b0; padding-top: 8px; margin-bottom: 15px;">
-                <p style="font-size: 15px; color: #d81b60; margin: 0;"><strong>Total Amount: ₱${parseFloat(o.price || 0).toFixed(2)}</strong></p>
-            </div>
+    const fields = [
+        ['Order ID', `#${o.id || 'N/A'}`],
+        ['Fulfillment', isDelivery ? 'Delivery' : 'Pickup'],
+        ['Customer Name', o.full_name || 'N/A'],
+        ['Customer Contact', o.phone_number || 'N/A'],
+        ['Pickup / Delivery Date', o.date_of_pickup || 'N/A']
+    ];
 
-            <!-- Footer -->
-            <div style="text-align: center; font-size: 10px; color: #785a50; border-top: 1px dashed #e8c3b0; padding-top: 8px;">
-                <p style="margin: 0;">Thank you for ordering with LynxPrise!</p>
-            </div>
-        </div>
-    `;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    fields.forEach(([label, value]) => {
+        const wrapped = doc.splitTextToSize(`${label}: ${value}`, pageWidth - margin * 2);
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * 5;
+    });
 
-    // Wait for DOM to register HTML render before rendering PDF canvas
-    setTimeout(() => {
-        const opt = {
-            margin:       [4, 4, 4, 4],
-            filename:     `LynxPrise_Receipt_Order_${o.id}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, logging: false, useCORS: true, windowWidth: 800 },
-            jsPDF:        { unit: 'mm', format: 'a5', orientation: 'portrait' }
-        };
+    y += 3;
+    doc.setDrawColor(232, 195, 176);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
 
-        html2pdf().set(opt).from(receiptContainer).save();
-    }, 100);
+    // Header Section
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Order Item', margin, y);
+    // Right-align 'Price' header to match the price value coordinate
+    doc.text('Price', pageWidth - margin, y, { align: 'right' });
+    y += 6;
+
+    // Separator Line
+    doc.setDrawColor(232, 195, 176);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 5;
+
+    // Item Row
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const productText = doc.splitTextToSize(`${o.product_name || 'N/A'}`, pageWidth - margin * 2 - 30);
+    doc.text(productText, margin, y);
+    // Right-align price value with space after 'PHP'
+    doc.text(`PHP ${parseFloat(o.price || 0).toFixed(2)}`, pageWidth - margin, y, { align: 'right' });
+    y += productText.length * 4.5 + 4;
+
+    if (isDelivery) {
+        doc.setDrawColor(232, 195, 176);
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 6;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text('Delivery Information', margin, y);
+        y += 6;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        const deliveryFields = [
+            ['Recipient Name', recipientName || 'N/A'],
+            ['Recipient Contact', recipientContact || 'N/A'],
+            ['Address', displayAddress || 'N/A'],
+            ['Coordinates', lat && lng ? `${lat}, ${lng}` : 'Not specified'],
+            ['Maps Link', 'Open GPS route']
+        ];
+
+        deliveryFields.forEach(([label, value]) => {
+            const text = doc.splitTextToSize(`${label}: ${value}`, pageWidth - margin * 2);
+            doc.text(text, margin, y);
+            y += text.length * 4.5;
+        });
+
+        if (cleanCardMessage) {
+            y += 2;
+            const messageText = doc.splitTextToSize(`Card Message: ${cleanCardMessage}`, pageWidth - margin * 2);
+            doc.text(messageText, margin, y);
+            y += messageText.length * 4.5;
+        }
+    }
+
+    if (cleanNotes) {
+        y += 3;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text('Admin Notes', margin, y);
+        y += 5;
+        doc.setFont('helvetica', 'normal');
+        const noteText = doc.splitTextToSize(cleanNotes, pageWidth - margin * 2);
+        doc.text(noteText, margin, y);
+        y += noteText.length * 4.5;
+    }
+
+    y += 6;
+    doc.setDrawColor(217, 97, 139);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    
+    // Left-align Total Amount along the left margin
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(12);
+doc.text(`Total Amount: PHP ${parseFloat(o.price || 0).toFixed(2)}`, margin, y, { align: 'left' });
+y += 10;
+
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.text('Thank you for ordering with LynxPrise!', pageWidth / 2, y, { align: 'center' });
+
+    doc.save(`LynxPrise_Receipt_Order_${o.id}.pdf`);
 }
 
         function closeModal() {
