@@ -109,6 +109,23 @@ function renderOrderRows($orders_list) {
     }
     return $html;
 }
+
+
+// Handle Order Deletion
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_order') {
+    $order_id = $_POST['order_id'] ?? null;
+    if ($order_id) {
+        $stmt = $pdo->prepare("DELETE FROM orders WHERE id = :order_id");
+        if ($stmt->execute([':order_id' => $order_id])) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to delete order']);
+        }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Missing order ID']);
+    }
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -243,6 +260,8 @@ function renderOrderRows($orders_list) {
         .close:hover { color: black; }
         .details-btn { background-color: #4CAF50; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; }
         .details-btn:hover { opacity: 0.9; }
+        .btn-delete { background-color: #d32f2f; color: white; padding: 7px 14px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; margin-top: 8px; margin-left: 8px; }
+        .btn-delete:hover { background-color: #b71c1c; }
         
         .receipt-btn { background-color: #d81b60; color: white; padding: 7px 14px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
         .receipt-btn:hover { background-color: #c2185b; }
@@ -268,6 +287,11 @@ function renderOrderRows($orders_list) {
       z-index: 0;
       display: block;
   }
+
+   
+.btn-delete { background-color: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+.btn-delete:hover { background-color: #d32f2f; }
+
     </style>
 </head>
 <body>
@@ -275,11 +299,11 @@ function renderOrderRows($orders_list) {
     <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
         <ul class="lp-nav-links">
-            <li><a href="/index.php#categories">Categories</a></li>
-            <li><a href="/index.php#how-it-works">How it works</a></li>
-            <li><a href="U_OrderPage.php">Order</a></li>
+            <li><a href="M_Dashboard.php">Orders</a></li>
+            <li><a href="M_Products.php">Products</a></li>
+            <li><a href="index.php">Back To Home</a></li>
         </ul>
-        <a href="U_OrderPage.php" class="btn-nav">Order now</a>
+        <a href="U_Logout.php" class="btn-nav">Logout</a>
     </nav>
 
     <div class="container">
@@ -335,13 +359,15 @@ function renderOrderRows($orders_list) {
             <span class="close" onclick="closeModal()">&times;</span>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-right: 30px;">
                 <h2 style="margin: 0;">Order Details</h2>
+             
                 <button class="receipt-btn" id="download-receipt-btn">🧾 Download Receipt</button>
+                
             </div>
             <div id="order-details"></div>
         </div>
     </div>
 
-    
+
 
     <!-- Hidden Printable Receipt -->
     <div id="printable-receipt"></div>
@@ -409,6 +435,7 @@ function renderOrderRows($orders_list) {
                         };
 
                         orderDetails.innerHTML = `
+                        
                             <div class="modal-grid">
                                 <p class="full-width"><strong>Order Type:</strong> <span style="color:#d81b60; font-weight:bold;">${isDelivery ? 'Delivery' : 'Pickup'}</span></p>
                                 <p><strong>Customer Name:</strong> ${o.full_name || 'N/A'}</p>
@@ -428,6 +455,7 @@ function renderOrderRows($orders_list) {
                                     <p class="full-width"><strong>Coordinates:</strong> ${lat && lng ? `${lat}, ${lng}` : 'Not specified'}</p>
                                     
                                     <div class="full-width" style="margin-top:10px;">
+                                    
                                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                             <strong>Delivery Route & Location:</strong>
                                             <a href="${directionsUrl}" target="_blank" class="details-btn" style="text-decoration:none; display:inline-block; background-color:#1a73e8;">
@@ -450,8 +478,10 @@ function renderOrderRows($orders_list) {
                                 <div class="full-width" style="margin-top:10px;">
                                     <label for="notes"><strong>Admin Notes:</strong></label>
                                     <textarea id="notes">${cleanNotes}</textarea>
-                                    <button class="details-btn" style="margin-top:8px;" onclick="updateNotes(${orderId})">Save Notes</button>
+                                    <button type="button" class="details-btn" style="margin-top:8px;" onclick="updateNotes(${orderId})">Save Notes</button>
+                                    <button type="button" class="btn-delete" onclick="deleteOrder(event, ${orderId})">Delete Order</button>
                                 </div>
+                                
                             </div>
                         `;
                         modal.style.display = "block";
@@ -614,6 +644,43 @@ y += 10;
     doc.text('Thank you for ordering with LynxPrise!', pageWidth / 2, y, { align: 'center' });
 
     doc.save(`LynxPrise_Receipt_Order_${o.id}.pdf`);
+}
+
+function deleteOrder(event, orderId) {
+    if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+    }
+
+    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+        return;
+    }
+
+    fetch("M_Dashboard.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "action=delete_order&order_id=" + orderId
+    })
+    .then(async res => {
+        const text = await res.text();
+        try {
+            return { ok: res.ok, data: JSON.parse(text) };
+        } catch (err) {
+            return { ok: res.ok, data: { success: false, message: text || 'Unexpected server response' } };
+        }
+    })
+    .then(({ ok, data }) => {
+        if (data && data.success) {
+            closeModal();
+            alert("Order deleted successfully!");
+            location.reload();
+        } else {
+            alert((data && data.message) || "Failed to delete order.");
+        }
+    })
+    .catch(err => {
+        console.error("Delete error:", err);
+        alert("There was a problem deleting this order.");
+    });
 }
 
         function closeModal() {
