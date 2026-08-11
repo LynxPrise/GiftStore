@@ -4,6 +4,12 @@ require_once 'U_db.php'; // Includes $pdo from U_db.php
 
 $order_status_message = "";
 
+// Display styled session notification if order was successful
+if (isset($_SESSION['order_success'])) {
+    $order_status_message = "<div style='background: var(--bg-cream); color: var(--accent-pink); border: 1px solid var(--gold-border); padding:14px; border-radius:16px; text-align:center; margin-bottom:20px; font-weight:600;'>🌸 " . htmlspecialchars($_SESSION['order_success']) . "</div>";
+    unset($_SESSION['order_success']);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     try {
         // Append recipient info to card message if mode is Delivery
@@ -19,15 +25,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         // Combine recipient info with user's card message / special instructions
         $final_card_message = $recipient_details . trim($_POST['notes'] ?? '');
 
+        // Capture Lat / Long coordinates if provided
+        $lat = !empty($_POST['latitude']) ? floatval($_POST['latitude']) : NULL;
+        $lng = !empty($_POST['longitude']) ? floatval($_POST['longitude']) : NULL;
+
         // Prepare database insertion matching updated schema
         $sql = "INSERT INTO orders (
                     user_id, products_id, full_name, phone_number, address, 
-                    product_name, price, mode_of_transpo, date_of_pickup, 
-                    product_image, status, card_message
+                    latitude, longitude, product_name, price, mode_of_transpo, 
+                    date_of_pickup, product_image, status, card_message
                 ) VALUES (
                     :user_id, :products_id, :full_name, :phone_number, :address, 
-                    :product_name, :price, :mode_of_transpo, :date_of_pickup, 
-                    :product_image, 'pending', :card_message
+                    :latitude, :longitude, :product_name, :price, :mode_of_transpo, 
+                    :date_of_pickup, :product_image, 'pending', :card_message
                 )";
 
         $stmt = $pdo->prepare($sql);
@@ -38,6 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             ':full_name'       => trim($_POST['full_name'] ?? ''),
             ':phone_number'    => trim($_POST['phone_number'] ?? ''),
             ':address'         => trim($_POST['address'] ?? ''),
+            ':latitude'        => $lat,
+            ':longitude'       => $lng,
             ':product_name'    => trim($_POST['product_name'] ?? ''),
             ':price'           => floatval($_POST['price'] ?? 0),
             ':mode_of_transpo' => intval($_POST['mode_of_transpo'] ?? 1),
@@ -46,7 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             ':card_message'    => $final_card_message
         ]);
 
-        echo "<script>alert('Order placed successfully!'); window.location.href='U_OrderPage.php';</script>";
+        $_SESSION['order_success'] = "Your LynxPrise order has been placed successfully!";
+        header("Location: U_OrderPage.php");
         exit;
 
     } catch (PDOException $e) {
@@ -63,6 +76,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
   <style>
     :root {
       --bg-cream: #fff9f6;
@@ -137,6 +154,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
     .btn-submit { background-color: var(--accent-pink); color: #fff; padding: 16px; border: none; border-radius: var(--radius-btn); font-weight: 700; font-size: 16px; cursor: pointer; width: 100%; }
 
+    /* Interactive Map Styles */
+    #delivery-map {
+      width: 100%;
+      height: 280px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--gold-border);
+      z-index: 1;
+    }
+
     @media (max-width: 640px) {
       .lp-grid-2, .lp-category-grid { grid-template-columns: 1fr; }
       .lp-order-form { padding: 24px 18px; }
@@ -180,6 +206,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         </div>
       </div>
     </section>
+
+    <!-- Custom Pink Theme Alert Modal -->
+    <div id="lp-alert-modal" class="lp-modal-overlay">
+      <div class="lp-modal-content" style="max-width: 420px; text-align: center; padding: 28px 24px;">
+        <div style="font-size: 38px; margin-bottom: 8px;">📍</div>
+        <h3 style="font-family: 'Playfair Display', serif; font-size: 22px; color: var(--text-dark); margin-bottom: 8px;">Notice</h3>
+        <p id="lp-alert-message" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px; line-height: 1.5;"></p>
+        <button type="button" onclick="closeCustomAlert()" class="btn-submit" style="padding: 10px 24px; font-size: 14px; width: auto; display: inline-block;">Got It</button>
+      </div>
+    </div>
 
     <!-- Category Modal: Bouquets -->
     <div id="cat-bouquets" class="lp-modal-overlay">
@@ -285,9 +321,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
           <div class="lp-field">
             <label for="mode_of_transpo">Fulfillment Option</label>
             <select class="lp-select" id="mode_of_transpo" name="mode_of_transpo" onchange="toggleFulfillmentMode()" required>
-              <option value="1">Delivery (with minimal delivery fee)</option>
-              <option value="2">Store Pickup</option>
-            </select>
+  <option value="1">Delivery (with minimal delivery fee)</option>
+  <option value="2" selected>Store Pickup</option>
+</select>
           </div>
 
           <div class="lp-field">
@@ -296,7 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
           </div>
         </div>
 
-        <!-- DYNAMIC CONTAINER 1: Delivery Fields -->
+        <!-- DYNAMIC CONTAINER 1: Delivery Fields with Interactive Map -->
         <div id="delivery-fields" style="display: flex; flex-direction: column; gap: 16px;">
           <div class="lp-grid-2">
             <div class="lp-field">
@@ -309,18 +345,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             </div>
           </div>
 
+          <!-- Hidden Latitude and Longitude Inputs -->
+          <input type="hidden" id="latitude" name="latitude" />
+          <input type="hidden" id="longitude" name="longitude" />
+
           <div class="lp-field">
-            <label for="address">Delivery Address</label>
-            <input class="lp-input" id="address" name="address" required placeholder="Street / Barangay / Municipality" />
+            <label for="address">Delivery Address Search & Pin Location</label>
+            <div style="display: flex; gap: 8px;">
+              <input class="lp-input" id="address" name="address" required placeholder="Type Barangay / Street / Landmark (e.g. Malitbogay)" />
+              <button type="button" onclick="searchLocation()" style="background: var(--accent-pink); color: #fff; border: none; padding: 0 16px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; white-space: nowrap;">Find Location</button>
+            </div>
+            <span style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">📍 Search a location or drag the pink pin on the map to mark your exact doorstep.</span>
           </div>
+
+          <!-- Leaflet Interactive Map -->
+          <div id="delivery-map"></div>
         </div>
 
         <!-- DYNAMIC CONTAINER 2: Store Pickup Location -->
         <div id="pickup-info" style="display: none; background: var(--bg-cream); border: 1px dashed var(--gold-border); padding: 18px; border-radius: var(--radius-md);">
-          <h4 style="color: var(--text-dark); margin-bottom: 6px; font-family: 'Playfair Display', serif;">Store Pickup Location</h4>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <h4 style="color: var(--text-dark); font-family: 'Playfair Display', serif;">Store Pickup Location</h4>
+            <a href="https://www.google.com/maps/search/?api=1&query=10.76498,124.91874" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               style="background-color: var(--accent-pink); color: #fff; padding: 6px 14px; border-radius: var(--radius-btn); text-decoration: none; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+              📍 Open in Maps
+            </a>
+          </div>
+
           <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">
             📍 <strong>LynxPrise Shop:</strong> Brgy. Malitbogay, Javier, Leyte
           </p>
+
           <div style="width: 100%; height: 220px; border-radius: 12px; overflow: hidden; border: 1px solid var(--gold-border);">
             <iframe 
               width="100%" 
@@ -329,7 +386,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
               scrolling="no" 
               marginheight="0" 
               marginwidth="0" 
-              src="https://maps.google.com/maps?q=Malitbogay%20Javier%20Leyte&t=&z=14&ie=UTF8&iwloc=&output=embed">
+              src="https://maps.google.com/maps?q=10.76498,124.91874&z=17&output=embed">
             </iframe>
           </div>
         </div>
@@ -349,8 +406,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     </form>
   </main>
 
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <script>
     let orderCart = [];
+    let map, marker;
+    let searchTimeout = null;
+
+    // Default center set to Javier, Leyte
+    const defaultLat = 10.76498;
+    const defaultLng = 124.91874;
+
+    function showCustomAlert(message) {
+      document.getElementById('lp-alert-message').textContent = message;
+      document.getElementById('lp-alert-modal').style.display = 'flex';
+    }
+
+    function closeCustomAlert() {
+      document.getElementById('lp-alert-modal').style.display = 'none';
+    }
+
+    function initDeliveryMap() {
+      if (map) return; // Prevent duplicate initialization
+
+      map = L.map('delivery-map').setView([defaultLat, defaultLng], 14);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Create Draggable Pin
+      marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+
+      // Update lat/lng inputs when marker is dragged
+      marker.on('dragend', function (e) {
+        const position = marker.getLatLng();
+        updateCoordinates(position.lat, position.lng);
+        reverseGeocode(position.lat, position.lng);
+      });
+
+      // Move marker on map click
+      map.on('click', function(e) {
+        marker.setLatLng(e.latlng);
+        updateCoordinates(e.latlng.lat, e.latlng.lng);
+        reverseGeocode(e.latlng.lat, e.latlng.lng);
+      });
+
+      // Set initial hidden fields
+      updateCoordinates(defaultLat, defaultLng);
+    }
+
+    function updateCoordinates(lat, lng) {
+      document.getElementById('latitude').value = lat.toFixed(8);
+      document.getElementById('longitude').value = lng.toFixed(8);
+    }
+
+    // Geocode typed address via OpenStreetMap Nominatim
+    function searchLocation() {
+      const query = document.getElementById('address').value.trim();
+      if (!query) return;
+
+      // Add "Javier Leyte" to target local places better
+      const searchQuery = query.toLowerCase().includes('leyte') ? query : query + ', Javier, Leyte, Philippines';
+
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            
+            map.setView([lat, lon], 16);
+            marker.setLatLng([lat, lon]);
+            updateCoordinates(lat, lon);
+          } else {
+            showCustomAlert("Location not found on map. You can manually drag the pink pin to your spot!");
+          }
+        })
+        .catch(err => {
+          console.error("Geocoding error:", err);
+          showCustomAlert("Unable to fetch location right now. Please drag the pin on the map directly.");
+        });
+    }
+
+    // Reverse geocode to get street name from pin drop
+    function reverseGeocode(lat, lng) {
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.display_name) {
+            document.getElementById('address').value = data.display_name;
+          }
+        })
+        .catch(err => console.error("Reverse geocoding error:", err));
+    }
+
+    // Auto-search after user stops typing for 1 second
+    document.getElementById('address').addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchLocation();
+      }, 1000);
+    });
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -425,28 +583,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     }
 
     function toggleFulfillmentMode() {
-      const transpoMode = document.getElementById('mode_of_transpo').value;
-      const deliveryFields = document.getElementById('delivery-fields');
-      const pickupInfo = document.getElementById('pickup-info');
-      const addressInput = document.getElementById('address');
-      const dateLabel = document.getElementById('date-label');
+  const transpoMode = document.getElementById('mode_of_transpo').value;
+  const deliveryFields = document.getElementById('delivery-fields');
+  const pickupInfo = document.getElementById('pickup-info');
+  const addressInput = document.getElementById('address');
+  const dateLabel = document.getElementById('date-label');
 
-      if (transpoMode === '2') { // Store Pickup
-        deliveryFields.style.display = 'none';
-        pickupInfo.style.display = 'block';
-        addressInput.removeAttribute('required');
-        addressInput.value = 'Store Pickup - Brgy. Malitbogay, Javier, Leyte';
-        dateLabel.textContent = 'Preferred Pickup Date & Time';
-      } else { // Delivery
-        deliveryFields.style.display = 'flex';
-        pickupInfo.style.display = 'none';
-        addressInput.setAttribute('required', 'required');
-        if (addressInput.value.startsWith('Store Pickup')) {
-          addressInput.value = '';
-        }
-        dateLabel.textContent = 'Preferred Delivery Date & Time';
-      }
+  if (transpoMode === '2') { // Store Pickup
+    deliveryFields.style.display = 'none';
+    pickupInfo.style.display = 'block';
+    addressInput.removeAttribute('required');
+    addressInput.value = 'Store Pickup - Brgy. Malitbogay, Javier, Leyte';
+    dateLabel.textContent = 'Preferred Pickup Date & Time';
+  } else { // Delivery
+    deliveryFields.style.display = 'flex';
+    pickupInfo.style.display = 'none';
+    addressInput.setAttribute('required', 'required');
+    if (addressInput.value.startsWith('Store Pickup')) {
+      addressInput.value = '';
     }
+    dateLabel.textContent = 'Preferred Delivery Date & Time';
+
+    // Initialize or refresh Leaflet map when switching to Delivery
+    setTimeout(() => {
+      initDeliveryMap();
+      if (map) map.invalidateSize();
+    }, 200);
+  }
+}
+
+    // function toggleFulfillmentMode() {
+    //   const transpoMode = document.getElementById('mode_of_transpo').value;
+    //   const deliveryFields = document.getElementById('delivery-fields');
+    //   const pickupInfo = document.getElementById('pickup-info');
+    //   const addressInput = document.getElementById('address');
+    //   const dateLabel = document.getElementById('date-label');
+
+    //   if (transpoMode === '2') { // Store Pickup
+    //     deliveryFields.style.display = 'none';
+    //     pickupInfo.style.display = 'block';
+    //     addressInput.removeAttribute('required');
+    //     addressInput.value = 'Store Pickup - Brgy. Malitbogay, Javier, Leyte';
+    //     dateLabel.textContent = 'Preferred Pickup Date & Time';
+    //   } else { // Delivery
+    //     deliveryFields.style.display = 'flex';
+    //     pickupInfo.style.display = 'none';
+    //     addressInput.setAttribute('required', 'required');
+    //     if (addressInput.value.startsWith('Store Pickup')) {
+    //       addressInput.value = '';
+    //     }
+    //     dateLabel.textContent = 'Preferred Delivery Date & Time';
+
+    //     // Initialize and resize Leaflet map when delivery option is selected
+    //     setTimeout(() => {
+    //       initDeliveryMap();
+    //       if (map) map.invalidateSize();
+    //     }, 200);
+    //   }
+    // }
 
     document.addEventListener('DOMContentLoaded', toggleFulfillmentMode);
   </script>
