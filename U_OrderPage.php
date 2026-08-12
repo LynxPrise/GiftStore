@@ -1,12 +1,6 @@
 <?php
 session_start();
 
-// Security Guard: Check if the user is authenticated
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
-    header('Location: U_Login.php');
-    exit;
-}
-
 require_once 'U_db.php'; // Includes $pdo from U_db.php
 
 $order_status_message = "";
