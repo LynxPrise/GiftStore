@@ -163,46 +163,206 @@ $products = $pdo->query($sql)->fetchAll();
         :root {
             --bg-soft-pink: #fdeee8;
             --accent-pink: #d9658b;
+            --accent-pink-hover: #c45075;
             --text-dark: #3b2219;
             --radius-btn: 30px;
         }
 
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg-soft-pink); color: var(--text-dark); margin:0; }
-        
-        .lp-nav { position: sticky; top: 0; background: #fff; padding: 18px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .lp-logo { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--text-dark); text-decoration: none; }
-        .lp-logo span { font-family: 'Sacramento', cursive; color: var(--accent-pink); font-size: 32px; }
-        .lp-nav-links { display: flex; gap: 30px; list-style: none; }
-        .lp-nav-links a { text-decoration: none; color: var(--text-dark); font-weight: 500; }
-        .btn-logout { background: #e53935; color: #fff; padding: 10px 24px; border-radius: var(--radius-btn); text-decoration: none; font-weight: 600; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-        .container { max-width: 1100px; margin: 30px auto; padding: 25px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        h2, h3 { color: #d81b60; margin-bottom: 20px; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-soft-pink); 
+            color: var(--text-dark); 
+            line-height: 1.5;
+        }
+        
+        /* Navbar Header */
+        .lp-nav { 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000;
+            background: #fff; 
+            padding: 14px 5%; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+            flex-wrap: wrap;
+        }
+        
+        .lp-logo { 
+            font-family: 'Playfair Display', serif; 
+            font-size: 24px; 
+            font-weight: 700; 
+            color: var(--text-dark); 
+            text-decoration: none; 
+        }
+        
+        .lp-logo span { 
+            font-family: 'Sacramento', cursive; 
+            color: var(--accent-pink); 
+            font-size: 32px; 
+        }
+
+        .nav-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-dark);
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .lp-nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .lp-nav-links { 
+            display: flex; 
+            gap: 25px; 
+            list-style: none; 
+            margin: 0;
+            padding: 0;
+        }
+
+        .lp-nav-links a { 
+            text-decoration: none; 
+            color: var(--text-dark); 
+            font-weight: 500; 
+            font-size: 15px;
+            transition: color 0.2s;
+        }
+
+        .lp-nav-links a:hover {
+            color: var(--accent-pink);
+        }
+
+        /* Updated Pink Logout Button */
+        .btn-logout { 
+            background: var(--accent-pink); 
+            color: #fff; 
+            padding: 8px 20px; 
+            border-radius: var(--radius-btn); 
+            text-decoration: none; 
+            font-weight: 600; 
+            font-size: 14px;
+            display: inline-block;
+            text-align: center;
+            transition: background-color 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: var(--accent-pink-hover);
+        }
+
+        /* Container Card Layout */
+        .container { 
+            max-width: 1100px; 
+            margin: 20px auto; 
+            padding: 20px; 
+            background: #fff; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        h2, h3 { color: #d81b60; margin: 0; }
         
         .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; }
         .alert-success { background: #d4edda; color: #155724; }
         .alert-error { background: #f8d7da; color: #721c24; }
 
-        .product-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8f8f8; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+        /* Product Form Inside Modal */
+        .product-form { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            background: #fff; 
+            padding: 10px 0 0 0; 
+        }
+
         .form-group { display: flex; flex-direction: column; }
         .form-group.full-width { grid-column: span 2; }
         .form-group label { font-weight: 600; margin-bottom: 5px; font-size: 14px; }
-        .form-group input, .form-group select, .form-group textarea { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; font-family: inherit; }
-        .btn-submit { background: var(--accent-pink); color: white; border: none; padding: 12px 20px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; grid-column: span 2; }
+        .form-group input, .form-group select, .form-group textarea { 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            font-family: inherit; 
+            width: 100%;
+        }
+
+        .btn-add-trigger {
+            background: var(--accent-pink);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-btn);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-add-trigger:hover {
+            background: var(--accent-pink-hover);
+        }
+
+        .btn-submit { 
+            background: var(--accent-pink); 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 6px; 
+            font-size: 15px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            grid-column: span 2; 
+            transition: background-color 0.2s;
+        }
+
+        .btn-submit:hover {
+            background: var(--accent-pink-hover);
+        }
 
         /* Catalog Header & Search Input */
         .catalog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-        .catalog-header h3 { margin: 0; }
         .search-box { width: 300px; padding: 10px 14px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; transition: border-color 0.2s; }
         .search-box:focus { border-color: var(--accent-pink); box-shadow: 0 0 5px rgba(217, 101, 139, 0.3); }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        /* Responsive Table Wrapper */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        table { width: 100%; min-width: 650px; border-collapse: collapse; }
         th, td { padding: 12px; border: 1px solid #ddd; text-align: left; vertical-align: middle; font-size: 14px; }
-        th { background: #f8f8f8; color: #d81b60; }
+        th { background: #f8f8f8; color: #d81b60; white-space: nowrap; }
         .product-img-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
         
         /* Action Buttons */
-        .action-btns { display: flex; gap: 8px; }
+        .action-btns { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn-edit { background-color: #0288d1; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px; text-decoration: none; }
         .btn-edit:hover { background-color: #01579b; }
         .btn-delete { background-color: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px; }
@@ -210,80 +370,116 @@ $products = $pdo->query($sql)->fetchAll();
         .optional-tag { font-size: 12px; color: #888; font-weight: normal; }
 
         /* Modal Layout */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-        .modal-content { background-color: #fff; padding: 25px; border-radius: 10px; width: 90%; max-width: 600px; position: relative; max-height: 90vh; overflow-y: auto; }
+        .modal { 
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0,0,0,0.5); 
+            justify-content: center; 
+            align-items: center; 
+            padding: 15px;
+        }
+
+        .modal-content { 
+            background-color: #fff; 
+            padding: 25px; 
+            border-radius: 10px; 
+            width: 100%; 
+            max-width: 600px; 
+            position: relative; 
+            max-height: 90vh; 
+            overflow-y: auto; 
+        }
+
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 22px; font-weight: bold; cursor: pointer; color: #aaa; }
         .close-btn:hover { color: #000; }
+
+        /* Mobile Responsive Adjustments */
+        @media screen and (max-width: 768px) {
+            .nav-toggle {
+                display: block;
+            }
+
+            .lp-nav-menu {
+                display: none;
+                flex-direction: column;
+                width: 100%;
+                margin-top: 12px;
+                padding-top: 12px;
+                border-top: 1px solid #f0f0f0;
+                align-items: stretch;
+                gap: 15px;
+            }
+
+            .lp-nav-menu.active {
+                display: flex;
+            }
+
+            .lp-nav-links {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+
+            .product-form {
+                grid-template-columns: 1fr;
+            }
+
+            .form-group.full-width, .btn-submit {
+                grid-column: span 1;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .modal-content {
+                padding: 15px;
+            }
+        }
     </style>
 </head>
 <body>
 
     <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
-        <ul class="lp-nav-links">
-            <li><a href="M_Dashboard.php">Orders</a></li>
-            <li><a href="M_Products.php">Products</a></li>
-            <li><a href="M_Categories.php">Categories</a></li>
-            <li><a href="index.php">Back To Home</a></li>
-        </ul>
-        <a href="logout.php" class="btn-logout">Logout</a>
+        <button class="nav-toggle" onclick="toggleNav()" aria-label="Toggle Navigation">☰</button>
+        <div class="lp-nav-menu" id="navMenu">
+            <ul class="lp-nav-links">
+                <li><a href="M_Dashboard.php">Orders</a></li>
+                <li><a href="M_Products.php">Products</a></li>
+                <li><a href="M_Categories.php">Categories</a></li>
+                <li><a href="index.php">Back To Home</a></li>
+            </ul>
+            <a href="logout.php" class="btn-logout">Logout</a>
+        </div>
     </nav>
 
     <div class="container">
-        <h2>Manage Products</h2>
+        <div class="header-actions">
+            <h2>Manage Products</h2>
+            <button class="btn-add-trigger" onclick="openAddModal()">+ Add New Product</button>
+        </div>
 
         <?php if ($message): ?>
             <div class="alert alert-<?php echo $messageType; ?>"><?php echo htmlspecialchars($message); ?></div>
         <?php endif; ?>
-
-        <h3>Add New Product</h3>
-        <form method="POST" enctype="multipart/form-data" class="product-form">
-            <input type="hidden" name="action" value="add_product">
-            
-            <div class="form-group">
-                <label for="productName">Product Name</label>
-                <input type="text" id="productName" name="productName" required placeholder="e.g. Red Rose Bouquet">
-            </div>
-
-            <div class="form-group">
-                <label for="categoryId">Category</label>
-                <select id="categoryId" name="categoryId" required>
-                    <option value="">-- Select Category --</option>
-                    <?php foreach ($categories as $cat): ?>
-                        <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['categoryName']); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="form-group full-width">
-                <label for="productDescription">Product Description <span class="optional-tag">(Optional)</span></label>
-                <textarea id="productDescription" name="productDescription" rows="3" placeholder="Write a short description about this product..."></textarea>
-            </div>
-
-            <div class="form-group">
-                <label for="productPrice">Price (₱)</label>
-                <input type="number" step="0.01" id="productPrice" name="productPrice" required placeholder="0.00">
-            </div>
-
-            <div class="form-group">
-                <label for="productStock">Stock Quantity</label>
-                <input type="number" id="productStock" name="productStock" value="10" required>
-            </div>
-
-            <div class="form-group full-width">
-                <label for="productImage">Product Image</label>
-                <input type="file" id="productImage" name="productImage" accept="image/*" required>
-            </div>
-
-            <button type="submit" class="btn-submit">Upload Product</button>
-        </form>
 
         <div class="catalog-header">
             <h3>Product Catalog</h3>
             <input type="text" id="searchInput" class="search-box" placeholder="🔍 Search product or category..." onkeyup="filterProducts()">
         </div>
 
-        <div style="overflow-x: auto;">
+        <div class="table-responsive">
             <table id="productTable">
                 <thead>
                     <tr>
@@ -336,12 +532,60 @@ $products = $pdo->query($sql)->fetchAll();
         </div>
     </div>
 
+    <!-- Modal for Adding Product -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAddModal()">&times;</span>
+            <h3>Add New Product</h3>
+            <form method="POST" enctype="multipart/form-data" class="product-form">
+                <input type="hidden" name="action" value="add_product">
+                
+                <div class="form-group">
+                    <label for="productName">Product Name</label>
+                    <input type="text" id="productName" name="productName" required placeholder="e.g. Red Rose Bouquet">
+                </div>
+
+                <div class="form-group">
+                    <label for="categoryId">Category</label>
+                    <select id="categoryId" name="categoryId" required>
+                        <option value="">-- Select Category --</option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['categoryName']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="productDescription">Product Description <span class="optional-tag">(Optional)</span></label>
+                    <textarea id="productDescription" name="productDescription" rows="3" placeholder="Write a short description about this product..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="productPrice">Price (₱)</label>
+                    <input type="number" step="0.01" id="productPrice" name="productPrice" required placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label for="productStock">Stock Quantity</label>
+                    <input type="number" id="productStock" name="productStock" value="10" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="productImage">Product Image</label>
+                    <input type="file" id="productImage" name="productImage" accept="image/*" required>
+                </div>
+
+                <button type="submit" class="btn-submit">Upload Product</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal for Editing Product -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeEditModal()">&times;</span>
-            <h3 style="margin-top:0;">Edit Product</h3>
-            <form method="POST" enctype="multipart/form-data" class="product-form" style="margin-bottom:0;">
+            <h3>Edit Product</h3>
+            <form method="POST" enctype="multipart/form-data" class="product-form">
                 <input type="hidden" name="action" value="edit_product">
                 <input type="hidden" id="edit_productId" name="productId">
 
@@ -386,6 +630,12 @@ $products = $pdo->query($sql)->fetchAll();
     </div>
 
     <script>
+        // Toggle Nav Menu on Small Screens
+        function toggleNav() {
+            const navMenu = document.getElementById('navMenu');
+            navMenu.classList.toggle('active');
+        }
+
         // Real-time Product Search Filter
         function filterProducts() {
             const input = document.getElementById('searchInput');
@@ -411,7 +661,16 @@ $products = $pdo->query($sql)->fetchAll();
             }
         }
 
-        // Open Modal
+        // Add Modal Functions
+        function openAddModal() {
+            document.getElementById('addModal').style.display = 'flex';
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+
+        // Edit Modal Functions
         function openEditModal(product) {
             document.getElementById('edit_productId').value = product.productId;
             document.getElementById('edit_productName').value = product.productName;
@@ -423,15 +682,18 @@ $products = $pdo->query($sql)->fetchAll();
             document.getElementById('editModal').style.display = 'flex';
         }
 
-        // Close Modal
         function closeEditModal() {
             document.getElementById('editModal').style.display = 'none';
         }
 
-        // Close modal when clicking outside box
+        // Close modals when clicking outside modal contents
         window.onclick = function(event) {
-            const modal = document.getElementById('editModal');
-            if (event.target === modal) {
+            const addModal = document.getElementById('addModal');
+            const editModal = document.getElementById('editModal');
+            if (event.target === addModal) {
+                closeAddModal();
+            }
+            if (event.target === editModal) {
                 closeEditModal();
             }
         }

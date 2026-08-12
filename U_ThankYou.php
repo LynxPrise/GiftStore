@@ -284,6 +284,25 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
     .btn-home:hover {
       color: var(--accent-pink);
     }
+
+    /* Mobile Responsiveness & Navigation Hide */
+    @media (max-width: 640px) {
+      .lp-nav-links {
+        display: none;
+      }
+
+      .lp-nav {
+        padding: 12px 4%;
+      }
+
+      .lp-thankyou-card {
+        padding: 32px 20px;
+      }
+
+      .lp-thankyou-title {
+        font-size: 26px;
+      }
+    }
   </style>
 </head>
 <body>

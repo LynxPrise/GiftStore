@@ -524,7 +524,15 @@ try {
     }
 
     /* Responsive Design */
-    @media (max-width: 900px) {
+   @media (max-width: 900px) {
+      .lp-nav {
+        padding: 14px 4%;
+      }
+
+      .lp-nav-links {
+        display: none;
+      }
+
       .lp-hero-grid,
       .lp-categories-grid,
       .lp-steps-grid,
@@ -534,15 +542,11 @@ try {
       }
 
       .lp-hero-title {
-        font-size: 38px;
+        font-size: 36px;
       }
 
       .lp-hero-title span {
-        font-size: 50px;
-      }
-
-      .lp-nav-links {
-        display: none;
+        font-size: 48px;
       }
     }
   </style>

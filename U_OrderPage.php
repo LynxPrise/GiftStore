@@ -14,6 +14,8 @@ if (isset($_SESSION['order_success'])) {
 $categories = [];
 $categories_products = [];
 
+$min_datetime = date('Y-m-d\TH:i');
+
 try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
@@ -227,12 +229,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
     #delivery-map { width: 100%; height: 280px; border-radius: var(--radius-md); border: 1px solid var(--gold-border); z-index: 1; }
 
+    
+
     @media (max-width: 640px) {
-      .lp-grid-2, .lp-category-grid { grid-template-columns: 1fr; }
-      .lp-order-form { padding: 24px 18px; }
-      .lp-modal-footer { flex-direction: column; align-items: stretch; text-align: center; }
-      .modal-checkout-btn { justify-content: center; }
+    /* Hide navigation links on mobile */
+    .lp-nav-links {
+      display: none;
     }
+
+    /* Adjust header padding to keep logo & button nicely spaced */
+    .lp-nav {
+      padding: 12px 4%;
+    }
+
+    .lp-grid-2, .lp-category-grid { 
+      grid-template-columns: 1fr; 
+    }
+    
+    .lp-order-form { 
+      padding: 24px 18px; 
+    }
+    
+    .lp-modal-footer { 
+      flex-direction: column; 
+      align-items: stretch; 
+      text-align: center; 
+    }
+    
+    .modal-checkout-btn { 
+      justify-content: center; 
+    }
+  }
   </style>
 </head>
 <body>
@@ -428,7 +455,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
           </div>
           <div class="lp-field">
             <label for="date_of_pickup" id="date-label">Preferred Delivery Date & Time</label>
-            <input class="lp-input" id="date_of_pickup" name="date_of_pickup" type="datetime-local" required />
+            <input 
+              class="lp-input" 
+              id="date_of_pickup" 
+              name="date_of_pickup" 
+              type="datetime-local" 
+              min="<?= date('Y-m-d\TH:i') ?>" 
+              required 
+            />
           </div>
         </div>
 
@@ -523,6 +557,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         modal.style.display = 'none';
       }
     }
+
+   
+  // AUTO-OPEN MODAL ON PAGE LOAD (Fix for landing page redirect)
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const categoryParam = urlParams.get('category') || urlParams.get('cat') || urlParams.get('id');
+
+    if (categoryParam) {
+      // Clean up parameter in case it includes 'cat-' prefix or just raw ID
+      const formattedModalId = categoryParam.startsWith('cat-') ? categoryParam : 'cat-' + categoryParam;
+      
+      // Attempt to open the corresponding modal
+      openModal(formattedModalId);
+    }
+
+    // Initialize pickup/delivery view defaults
+    toggleFulfillmentMode();
+  });
 
     function showCustomAlert(message) {
       document.getElementById('lp-alert-message').textContent = message;
@@ -661,7 +714,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       }
     }
     
-    
 
     function initMap() {
       map = L.map('delivery-map').setView([defaultLat, defaultLng], 14);
@@ -677,17 +729,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       marker.on('dragend', function (e) {
         const coord = e.target.getLatLng();
         updateCoords(coord.lat, coord.lng);
+        reverseGeocode(coord.lat, coord.lng);
       });
 
       map.on('click', function (e) {
         marker.setLatLng(e.latlng);
         updateCoords(e.latlng.lat, e.latlng.lng);
+        reverseGeocode(e.latlng.lat, e.latlng.lng);
       });
     }
 
     function updateCoords(lat, lng) {
       document.getElementById('latitude').value = lat;
       document.getElementById('longitude').value = lng;
+    }
+
+    function reverseGeocode(lat, lng) {
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.display_name) {
+            document.getElementById('address').value = data.display_name;
+          }
+        })
+        .catch(() => {
+          // keep current address value if reverse lookup fails
+        });
     }
 
     function searchLocation() {
@@ -704,10 +771,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
           if (data && data.length > 0) {
             const lat = parseFloat(data[0].lat);
             const lon = parseFloat(data[0].lon);
+            const displayName = data[0].display_name || query;
 
             map.setView([lat, lon], 16);
             marker.setLatLng([lat, lon]);
             updateCoords(lat, lon);
+            document.getElementById('address').value = displayName;
           } else {
             showCustomAlert("Location not found. Please try a different landmark or click on the map.");
           }
@@ -720,6 +789,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     document.addEventListener('DOMContentLoaded', () => {
       initMap();
       toggleFulfillmentMode();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const dateInput = document.getElementById('date_of_pickup');
+      if (dateInput) {
+        const now = new Date();
+        // Offset local time format to ISO string (YYYY-MM-DDTHH:mm)
+        const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                          .toISOString()
+                          .slice(0, 16);
+        dateInput.min = localIso;
+      }
     });
   </script>
 

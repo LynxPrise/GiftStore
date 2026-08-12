@@ -160,48 +160,74 @@ try {
   <title>Manage Categories | LynxPrise Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-   <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap" rel="stylesheet">
     
-  
   <style>
     :root {
-            --bg-cream: #fff9f6;
-            --bg-soft-pink: #fdeee8;
-            --card-bg: #fffbf9;
-            --accent-pink: #d9658b;
-            --accent-pink-hover: #c45075;
-            --text-dark: #3b2219;
-            --text-muted: #785a50;
-            --gold-border: #e8c3b0;
-            --gold-accent: #c28851;
-            --radius-lg: 24px;
-            --radius-md: 16px;
-            --radius-btn: 30px;
-        }
+        --bg-cream: #fff9f6;
+        --bg-soft-pink: #fdeee8;
+        --card-bg: #fffbf9;
+        --accent-pink: #d9658b;
+        --accent-pink-hover: #c45075;
+        --text-dark: #3b2219;
+        --text-muted: #785a50;
+        --gold-border: #e8c3b0;
+        --gold-accent: #c28851;
+        --radius-lg: 24px;
+        --radius-md: 16px;
+        --radius-btn: 30px;
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
 
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: var(--bg-soft-pink); 
-            color: var(--text-dark);
-            line-height: 1.6;
-            margin: 0; 
-            padding: 0; 
-        }
+    body { 
+        font-family: 'Plus Jakarta Sans', sans-serif; 
+        background-color: var(--bg-soft-pink); 
+        color: var(--text-dark);
+        line-height: 1.6;
+        margin: 0; 
+        padding: 0; 
+    }
 
-    .admin-container { max-width: 1100px; margin: 0 auto; }
+    .admin-container { 
+        max-width: 1100px; 
+        margin: 0 auto; 
+        padding: 0 16px 40px 16px;
+    }
 
-    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; margin-top: 24px; }
-    .header-bar h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text-dark); }
-    .btn-add-modal { background: var(--accent-pink); color: #fff; border: none; padding: 12px 22px; border-radius: 30px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .header-bar { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        margin-bottom: 24px; 
+        margin-top: 24px; 
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .header-bar h1 { 
+        font-family: 'Playfair Display', serif; 
+        font-size: 32px; 
+        color: var(--text-dark); 
+    }
+
+    .btn-add-modal { 
+        background: var(--accent-pink); 
+        color: #fff; 
+        border: none; 
+        padding: 12px 22px; 
+        border-radius: 30px; 
+        font-weight: 600; 
+        cursor: pointer; 
+        text-decoration: none; 
+        display: inline-block; 
+        text-align: center;
+        transition: background-color 0.2s ease;
+    }
     .btn-add-modal:hover { background: var(--accent-pink-hover); }
 
     /* Alert Banner */
@@ -209,22 +235,73 @@ try {
     .alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     .alert-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
 
-    /* Table Container */
-    .table-card { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-    table { width: 100%; border-collapse: collapse; text-align: left; }
+    /* Table Container & Responsiveness */
+    .table-card { 
+        background: var(--card-bg); 
+        border: 1px solid var(--gold-border); 
+        border-radius: var(--radius-lg); 
+        overflow-x: auto; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        text-align: left; 
+        min-width: 600px;
+    }
+
     th, td { padding: 16px 20px; border-bottom: 1px solid #f2e3dc; vertical-align: middle; }
-    th { background: var(--bg-cream); font-weight: 700; color: var(--text-dark); font-size: 14px; }
+    th { background: var(--bg-cream); font-weight: 700; color: var(--text-dark); font-size: 14px; white-space: nowrap; }
     tr:last-child td { border-bottom: none; }
 
     .cat-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid var(--gold-border); background: #f8f8f8; }
     
-    .action-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; text-decoration: none; display: inline-block; margin-right: 6px; margin-top: 7px; cursor: pointer; border: none; }
+    .action-btn { 
+        padding: 6px 14px; 
+        border-radius: 20px; 
+        font-size: 12px; 
+        font-weight: 600; 
+        text-decoration: none; 
+        display: inline-block; 
+        margin: 2px 3px; 
+        cursor: pointer; 
+        border: none; 
+        white-space: nowrap;
+    }
     .btn-edit { background: #e3f2fd; color: #1565c0; }
     .btn-delete { background: #ffebee; color: #c62828; }
 
     /* Modal Styling */
-    .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 2000; justify-content: center; align-items: center; }
-    .modal-box { background: var(--bg-cream); border-radius: var(--radius-lg); width: 100%; max-width: 500px; padding: 28px; position: relative; border: 1px solid var(--gold-border); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+    .modal-overlay { 
+        display: none; 
+        position: fixed; 
+        top:0; 
+        left:0; 
+        width:100%; 
+        height:100%; 
+        background: rgba(0,0,0,0.5); 
+        backdrop-filter: blur(3px); 
+        z-index: 2000; 
+        justify-content: center; 
+        align-items: center; 
+        padding: 16px;
+    }
+
+    .modal-box { 
+        background: var(--bg-cream); 
+        border-radius: var(--radius-lg); 
+        width: 100%; 
+        max-width: 500px; 
+        padding: 28px; 
+        position: relative; 
+        border: 1px solid var(--gold-border); 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
     .modal-close { position: absolute; top: 16px; right: 20px; font-size: 24px; border: none; background: none; cursor: pointer; color: var(--text-muted); }
     .modal-title { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 20px; }
 
@@ -236,83 +313,156 @@ try {
     .btn-submit { width: 100%; background: var(--accent-pink); color: #fff; border: none; padding: 12px; border-radius: 25px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; }
     .btn-submit:hover { background: var(--accent-pink-hover); }
 
-    
-        /* Navigation Bar */
-        .lp-nav {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background-color: #fff;
-            padding: 18px 5%;
+    /* Navigation Bar */
+    .lp-nav {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background-color: #fff;
+        padding: 18px 5%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(59, 34, 25, 0.05);
+        flex-wrap: wrap;
+    }
+
+    .lp-logo {
+        font-family: 'Playfair Display', serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-dark);
+        text-decoration: none;
+    }
+
+    .lp-logo span {
+        font-family: 'Sacramento', cursive;
+        color: var(--accent-pink);
+        font-size: 32px;
+        margin-left: 2px;
+    }
+
+    .lp-nav-menu {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+    }
+
+    .lp-nav-links {
+        display: flex;
+        gap: 30px;
+        list-style: none;
+    }
+
+    .lp-nav-links a {
+        text-decoration: none;
+        color: var(--text-dark);
+        font-weight: 500;
+        font-size: 15px;
+        transition: color 0.2s;
+    }
+
+    .lp-nav-links a:hover {
+        color: var(--accent-pink);
+    }
+
+    .btn-nav {
+        background-color: var(--accent-pink);
+        color: #fff;
+        padding: 10px 24px;
+        border-radius: var(--radius-btn);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .btn-nav:hover {
+        background-color: var(--accent-pink-hover);
+    }
+
+    /* Mobile Menu Toggle Button */
+    .mobile-menu-toggle {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: var(--text-dark);
+        cursor: pointer;
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 880px) {
+        .mobile-menu-toggle {
+            display: block;
+        }
+
+        .lp-nav-menu {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            gap: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--gold-border);
+            margin-top: 12px;
+        }
+
+        .lp-nav-menu.active {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(59, 34, 25, 0.05);
-        }
-
-        .lp-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-dark);
-            text-decoration: none;
-        }
-
-        .lp-logo span {
-            font-family: 'Sacramento', cursive;
-            color: var(--accent-pink);
-            font-size: 32px;
-            margin-left: 2px;
         }
 
         .lp-nav-links {
-            display: flex;
-            gap: 30px;
-            list-style: none;
-        }
-
-        .lp-nav-links a {
-            text-decoration: none;
-            color: var(--text-dark);
-            font-weight: 500;
-            font-size: 15px;
-            transition: color 0.2s;
-        }
-
-        .lp-nav-links a:hover {
-            color: var(--accent-pink);
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
         }
 
         .btn-nav {
-            background-color: var(--accent-pink);
-            color: #fff;
-            padding: 10px 24px;
-            border-radius: var(--radius-btn);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            transition: background-color 0.2s;
+            width: 100%;
+            text-align: center;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .header-bar {
+            flex-direction: column;
+            align-items: stretch;
+            text-align: center;
         }
 
-        .btn-nav:hover {
-            background-color: var(--accent-pink-hover);
+        .header-bar h1 {
+            font-size: 26px;
         }
 
-        
+        .btn-add-modal {
+            width: 100%;
+        }
 
+        th, td {
+            padding: 12px 14px;
+        }
+
+        .modal-box {
+            padding: 20px;
+        }
+    }
   </style>
 </head>
 <body>
-     <!-- Navigation Bar -->
+    <!-- Navigation Bar -->
     <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
-        <ul class="lp-nav-links">
-            <li><a href="M_Dashboard.php">Orders</a></li>
-            <li><a href="M_Products.php">Products</a></li>
-            <li><a href="M_Categories.php">Categories</a></li>
-            <li><a href="index.php">Back To Home</a></li>
-        </ul>
-        <a href="U_Logout.php" class="btn-nav">Logout</a>
+        <button class="mobile-menu-toggle" id="menuToggle" aria-label="Toggle Navigation">&#9776;</button>
+        <div class="lp-nav-menu" id="navMenu">
+            <ul class="lp-nav-links">
+                <li><a href="M_Dashboard.php">Orders</a></li>
+                <li><a href="M_Products.php">Products</a></li>
+                <li><a href="M_Categories.php">Categories</a></li>
+                <li><a href="index.php">Back To Home</a></li>
+            </ul>
+            <a href="U_Logout.php" class="btn-nav">Logout</a>
+        </div>
     </nav>
 
   <div class="admin-container">
@@ -444,6 +594,13 @@ try {
   </div>
 
   <script>
+    // Mobile navigation toggle
+    const menuToggle = document.getElementById('menuToggle');
+    const navMenu = document.getElementById('navMenu');
+    menuToggle.addEventListener('click', () => {
+      navMenu.classList.toggle('active');
+    });
+
     function openAddModal() {
       document.getElementById('addModal').style.display = 'flex';
     }

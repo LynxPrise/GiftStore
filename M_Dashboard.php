@@ -110,7 +110,6 @@ function renderOrderRows($orders_list) {
     return $html;
 }
 
-
 // Handle Order Deletion
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_order') {
     $order_id = $_POST['order_id'] ?? null;
@@ -179,11 +178,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             top: 0;
             z-index: 1000;
             background-color: #fff;
-            padding: 18px 5%;
+            padding: 14px 5%;
             display: flex;
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 10px rgba(59, 34, 25, 0.05);
+            flex-wrap: wrap;
         }
 
         .lp-logo {
@@ -201,10 +201,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             margin-left: 2px;
         }
 
+        .nav-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-dark);
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .lp-nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
         .lp-nav-links {
             display: flex;
-            gap: 30px;
+            gap: 25px;
             list-style: none;
+            margin: 0;
+            padding: 0;
         }
 
         .lp-nav-links a {
@@ -222,18 +240,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         .btn-nav {
             background-color: var(--accent-pink);
             color: #fff;
-            padding: 10px 24px;
+            padding: 8px 20px;
             border-radius: var(--radius-btn);
             text-decoration: none;
             font-weight: 600;
             font-size: 14px;
             transition: background-color 0.2s;
+            display: inline-block;
+            text-align: center;
         }
 
         .btn-nav:hover {
             background-color: var(--accent-pink-hover);
         }
 
+        /* Responsive Layout Container */
         .container { 
             max-width: 1200px; 
             margin: 20px auto; 
@@ -244,67 +265,222 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         }
 
         h2, h3 { color: #d81b60; margin-bottom: 15px; }
-        table { width: 100%; min-width: 750px; margin-bottom: 20px; border-collapse: collapse; }
-        table, th, td { border: 1px solid #ddd; }
-        th, td { padding: 12px; text-align: left; font-size: 14px; }
-        th { background-color: #f8f8f8; color: #d81b60; }
 
-        .sales-section { margin-bottom: 20px; background-color: #f8f8f8; padding: 15px; border-radius: 5px; border: 1px solid #ddd; }
-        select.status-dropdown { width: 100%; padding: 5px; font-size: 12px; background-color: #fff; border: 1px solid #ddd; border-radius: 5px; }
-        .table-container { overflow-x: auto; margin-bottom: 20px; }
-        
+        .table-container { 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 20px; 
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        table { width: 100%; min-width: 650px; border-collapse: collapse; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 10px 12px; text-align: left; font-size: 14px; }
+        th { background-color: #f8f8f8; color: #d81b60; white-space: nowrap; }
+
+        .sales-section { 
+            margin-bottom: 20px; 
+            background-color: #f8f8f8; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #ddd; 
+        }
+
+        select.status-dropdown { 
+            width: 100%; 
+            padding: 6px; 
+            font-size: 13px; 
+            background-color: #fff; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+        }
+
         /* Modal Styles */
-        .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); padding-top: 30px; }
-        .modal-content { background-color: #fff; margin: 2% auto; padding: 25px; border: 1px solid #888; width: 90%; max-width: 650px; border-radius: 8px; position: relative; }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .modal { 
+            display: none; 
+            position: fixed; 
+            z-index: 1001; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+            padding: 15px; 
+        }
+
+        .modal-content { 
+            background-color: #fff; 
+            margin: 2% auto; 
+            padding: 20px; 
+            border: 1px solid #888; 
+            width: 100%; 
+            max-width: 650px; 
+            border-radius: 12px; 
+            position: relative; 
+        }
+
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; }
         .close:hover { color: black; }
-        .details-btn { background-color: #4CAF50; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; }
-        .details-btn:hover { opacity: 0.9; }
-        .btn-delete { background-color: #d32f2f; color: white; padding: 7px 14px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; margin-top: 8px; margin-left: 8px; }
-        .btn-delete:hover { background-color: #b71c1c; }
         
-        .receipt-btn { background-color: #d81b60; color: white; padding: 7px 14px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+        .details-btn { 
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 8px 14px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 13px; 
+        }
+        .details-btn:hover { opacity: 0.9; }
+
+        .btn-delete { 
+            background-color: #f44336; 
+            color: white; 
+            border: none; 
+            padding: 8px 14px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 13px; 
+            font-weight: 600;
+        }
+        .btn-delete:hover { background-color: #d32f2f; }
+
+        .receipt-btn { 
+            background-color: #d81b60; 
+            color: white; 
+            padding: 8px 14px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 13px; 
+            font-weight: 600; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 5px; 
+        }
         .receipt-btn:hover { background-color: #c2185b; }
 
+        .modal-header-actions {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            padding-right: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .modal-grid p { margin: 5px 0; font-size: 14px; }
+        .modal-grid p { margin: 5px 0; font-size: 14px; word-break: break-word; }
         .full-width { grid-column: span 2; }
-        textarea#notes { width: 100%; height: 70px; margin-top: 5px; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        textarea#notes { width: 100%; height: 80px; margin-top: 5px; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
 
-       /* Keep the receipt off-screen but still fully rendered for html2pdf */
-  #printable-receipt {
-      position: absolute;
-      left: -9999px;
-      top: 0;
-      width: 140mm; /* A5 width */
-      min-height: 200mm;
-      background: #ffffff;
-      color: #3b2219;
-      box-sizing: border-box;
-      padding: 20px;
-      visibility: visible;
-      pointer-events: none;
-      z-index: 0;
-      display: block;
-  }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
 
-   
-.btn-delete { background-color: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 13px; }
-.btn-delete:hover { background-color: #d32f2f; }
+        #printable-receipt {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 140mm;
+            min-height: 200mm;
+            background: #ffffff;
+            color: #3b2219;
+            box-sizing: border-box;
+            padding: 20px;
+            visibility: visible;
+            pointer-events: none;
+            z-index: 0;
+            display: block;
+        }
 
+        /* Mobile Breakpoint Adjustments */
+        @media screen and (max-width: 768px) {
+            .nav-toggle {
+                display: block;
+            }
+
+            .lp-nav-menu {
+                display: none;
+                flex-direction: column;
+                width: 100%;
+                margin-top: 12px;
+                padding-top: 12px;
+                border-top: 1px solid #f0f0f0;
+                align-items: stretch;
+                gap: 15px;
+            }
+
+            .lp-nav-menu.active {
+                display: flex;
+            }
+
+            .lp-nav-links {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+
+            .modal {
+                padding: 10px;
+            }
+
+            .modal-content {
+                margin: 5% auto;
+                padding: 15px;
+            }
+
+            .modal-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full-width {
+                grid-column: span 1;
+            }
+
+            .modal-actions button {
+                width: 100%;
+                margin-left: 0 !important;
+            }
+
+            .map-container-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 8px;
+            }
+
+            .map-container-header a {
+                width: 100%;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
     <!-- Navigation Bar -->
     <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
-        <ul class="lp-nav-links">
-            <li><a href="M_Dashboard.php">Orders</a></li>
-            <li><a href="M_Products.php">Products</a></li>
-            <li><a href="M_Categories.php">Categories</a></li>
-            <li><a href="index.php">Back To Home</a></li>
-        </ul>
-        <a href="U_Logout.php" class="btn-nav">Logout</a>
+        <button class="nav-toggle" onclick="toggleNav()" aria-label="Toggle navigation">☰</button>
+        <div class="lp-nav-menu" id="navMenu">
+            <ul class="lp-nav-links">
+                <li><a href="M_Dashboard.php">Orders</a></li>
+                <li><a href="M_Products.php">Products</a></li>
+                <li><a href="M_Categories.php">Categories</a></li>
+                <li><a href="index.php">Back To Home</a></li>
+            </ul>
+            <a href="U_Logout.php" class="btn-nav">Logout</a>
+        </div>
     </nav>
 
     <div class="container">
@@ -358,17 +534,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     <div id="orderModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-right: 30px;">
+            <div class="modal-header-actions">
                 <h2 style="margin: 0;">Order Details</h2>
-             
                 <button class="receipt-btn" id="download-receipt-btn">🧾 Download Receipt</button>
-                
             </div>
             <div id="order-details"></div>
         </div>
     </div>
-
-
 
     <!-- Hidden Printable Receipt -->
     <div id="printable-receipt"></div>
@@ -380,6 +552,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 
         let currentActiveOrder = null;
 
+        function toggleNav() {
+            const navMenu = document.getElementById('navMenu');
+            navMenu.classList.toggle('active');
+        }
+
         function openModal(orderId) {
             var modal = document.getElementById("orderModal");
             var orderDetails = document.getElementById("order-details");
@@ -389,7 +566,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 .then(data => {
                     if (data.success) {
                         const o = data.order;
-                        currentActiveOrder = o; // Store reference for receipt generator
+                        currentActiveOrder = o;
                         
                         const val = String(o.mode_of_transpo || '').trim().toLowerCase();
                         const isDelivery = (val === '1' || val === 'delivery' || val === 'ship');
@@ -430,13 +607,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                             directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(STORE_ADDRESS)}&destination=${encodedAddr}&travelmode=driving`;
                         }
 
-                        // Attach event dynamically to download button
                         document.getElementById('download-receipt-btn').onclick = function() {
                             downloadReceipt(o, isDelivery, recipientName, recipientContact, displayAddress, cleanCardMessage);
                         };
 
                         orderDetails.innerHTML = `
-                        
                             <div class="modal-grid">
                                 <p class="full-width"><strong>Order Type:</strong> <span style="color:#d81b60; font-weight:bold;">${isDelivery ? 'Delivery' : 'Pickup'}</span></p>
                                 <p><strong>Customer Name:</strong> ${o.full_name || 'N/A'}</p>
@@ -456,16 +631,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                     <p class="full-width"><strong>Coordinates:</strong> ${lat && lng ? `${lat}, ${lng}` : 'Not specified'}</p>
                                     
                                     <div class="full-width" style="margin-top:10px;">
-                                    
-                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                        <div class="map-container-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                             <strong>Delivery Route & Location:</strong>
                                             <a href="${directionsUrl}" target="_blank" class="details-btn" style="text-decoration:none; display:inline-block; background-color:#1a73e8;">
-                                                📍 Get Directions on Google Maps
+                                                📍 Get Directions
                                             </a>
                                         </div>
                                         <iframe 
                                             width="100%" 
-                                            height="230" 
+                                            height="200" 
                                             style="border:0; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.15);" 
                                             loading="lazy" 
                                             allowfullscreen 
@@ -479,10 +653,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                 <div class="full-width" style="margin-top:10px;">
                                     <label for="notes"><strong>Admin Notes:</strong></label>
                                     <textarea id="notes">${cleanNotes}</textarea>
-                                    <button type="button" class="details-btn" style="margin-top:8px;" onclick="updateNotes(${orderId})">Save Notes</button>
-                                    <button type="button" class="btn-delete" onclick="deleteOrder(event, ${orderId})">Delete Order</button>
+                                    <div class="modal-actions">
+                                        <button type="button" class="details-btn" onclick="updateNotes(${orderId})">Save Notes</button>
+                                        <button type="button" class="btn-delete" onclick="deleteOrder(event, ${orderId})">Delete Order</button>
+                                    </div>
                                 </div>
-                                
                             </div>
                         `;
                         modal.style.display = "block";
@@ -496,193 +671,183 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 });
         }
 
-      function downloadReceipt(o, isDelivery, recipientName, recipientContact, displayAddress, cleanCardMessage) {
-    const notesInput = document.getElementById('notes');
-    const cleanNotes = notesInput ? notesInput.value : (o.notes || '');
+        function downloadReceipt(o, isDelivery, recipientName, recipientContact, displayAddress, cleanCardMessage) {
+            const notesInput = document.getElementById('notes');
+            const cleanNotes = notesInput ? notesInput.value : (o.notes || '');
 
-    const lat = o.latitude || o.lat || null;
-    const lng = o.longitude || o.lng || o.long || null;
+            const lat = o.latitude || o.lat || null;
+            const lng = o.longitude || o.lng || o.long || null;
 
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-        alert('PDF library is still loading. Please try again in a moment.');
-        return;
-    }
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                alert('PDF library is still loading. Please try again in a moment.');
+                return;
+            }
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' });
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' });
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 12;
-    let y = 12;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 12;
+            let y = 12;
 
-    // Title
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.text('LynxPrise', margin, y);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(20);
+            doc.text('LynxPrise', margin, y);
 
-    y += 7;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('OFFICIAL ORDER RECEIPT', margin, y);
-    y += 5;
-    doc.text(STORE_ADDRESS, margin, y);
-    y += 10;
+            y += 7;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text('OFFICIAL ORDER RECEIPT', margin, y);
+            y += 5;
+            doc.text(STORE_ADDRESS, margin, y);
+            y += 10;
 
-    // Divider
-    doc.setDrawColor(217, 97, 139);
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 6;
+            doc.setDrawColor(217, 97, 139);
+            doc.setLineWidth(0.5);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 6;
 
-    const fields = [
-        ['Order ID', `#${o.id || 'N/A'}`],
-        ['Fulfillment', isDelivery ? 'Delivery' : 'Pickup'],
-        ['Customer Name', o.full_name || 'N/A'],
-        ['Customer Contact', o.phone_number || 'N/A'],
-        ['Pickup / Delivery Date', o.date_of_pickup || 'N/A']
-    ];
+            const fields = [
+                ['Order ID', `#${o.id || 'N/A'}`],
+                ['Fulfillment', isDelivery ? 'Delivery' : 'Pickup'],
+                ['Customer Name', o.full_name || 'N/A'],
+                ['Customer Contact', o.phone_number || 'N/A'],
+                ['Pickup / Delivery Date', o.date_of_pickup || 'N/A']
+            ];
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    fields.forEach(([label, value]) => {
-        const wrapped = doc.splitTextToSize(`${label}: ${value}`, pageWidth - margin * 2);
-        doc.text(wrapped, margin, y);
-        y += wrapped.length * 5;
-    });
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            fields.forEach(([label, value]) => {
+                const wrapped = doc.splitTextToSize(`${label}: ${value}`, pageWidth - margin * 2);
+                doc.text(wrapped, margin, y);
+                y += wrapped.length * 5;
+            });
 
-    y += 3;
-    doc.setDrawColor(232, 195, 176);
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 6;
+            y += 3;
+            doc.setDrawColor(232, 195, 176);
+            doc.setLineWidth(0.5);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 6;
 
-    // Header Section
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('Order Item', margin, y);
-    // Right-align 'Price' header to match the price value coordinate
-    doc.text('Price', pageWidth - margin, y, { align: 'right' });
-    y += 6;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('Order Item', margin, y);
+            doc.text('Price', pageWidth - margin, y, { align: 'right' });
+            y += 6;
 
-    // Separator Line
-    doc.setDrawColor(232, 195, 176);
-    doc.setLineWidth(0.3);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 5;
+            doc.setDrawColor(232, 195, 176);
+            doc.setLineWidth(0.3);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 5;
 
-    // Item Row
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    const productText = doc.splitTextToSize(`${o.product_name || 'N/A'}`, pageWidth - margin * 2 - 30);
-    doc.text(productText, margin, y);
-    // Right-align price value with space after 'PHP'
-    doc.text(`PHP ${parseFloat(o.price || 0).toFixed(2)}`, pageWidth - margin, y, { align: 'right' });
-    y += productText.length * 4.5 + 4;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            const productText = doc.splitTextToSize(`${o.product_name || 'N/A'}`, pageWidth - margin * 2 - 30);
+            doc.text(productText, margin, y);
+            doc.text(`PHP ${parseFloat(o.price || 0).toFixed(2)}`, pageWidth - margin, y, { align: 'right' });
+            y += productText.length * 4.5 + 4;
 
-    if (isDelivery) {
-        doc.setDrawColor(232, 195, 176);
-        doc.setLineWidth(0.5);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 6;
+            if (isDelivery) {
+                doc.setDrawColor(232, 195, 176);
+                doc.setLineWidth(0.5);
+                doc.line(margin, y, pageWidth - margin, y);
+                y += 6;
 
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.text('Delivery Information', margin, y);
-        y += 6;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text('Delivery Information', margin, y);
+                y += 6;
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        const deliveryFields = [
-            ['Recipient Name', recipientName || 'N/A'],
-            ['Recipient Contact', recipientContact || 'N/A'],
-            ['Address', displayAddress || 'N/A'],
-            ['Coordinates', lat && lng ? `${lat}, ${lng}` : 'Not specified'],
-            ['Maps Link', 'Open GPS route']
-        ];
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                const deliveryFields = [
+                    ['Recipient Name', recipientName || 'N/A'],
+                    ['Recipient Contact', recipientContact || 'N/A'],
+                    ['Address', displayAddress || 'N/A'],
+                    ['Coordinates', lat && lng ? `${lat}, ${lng}` : 'Not specified'],
+                    ['Maps Link', 'Open GPS route']
+                ];
 
-        deliveryFields.forEach(([label, value]) => {
-            const text = doc.splitTextToSize(`${label}: ${value}`, pageWidth - margin * 2);
-            doc.text(text, margin, y);
-            y += text.length * 4.5;
-        });
+                deliveryFields.forEach(([label, value]) => {
+                    const text = doc.splitTextToSize(`${label}: ${value}`, pageWidth - margin * 2);
+                    doc.text(text, margin, y);
+                    y += text.length * 4.5;
+                });
 
-        if (cleanCardMessage) {
-            y += 2;
-            const messageText = doc.splitTextToSize(`Card Message: ${cleanCardMessage}`, pageWidth - margin * 2);
-            doc.text(messageText, margin, y);
-            y += messageText.length * 4.5;
+                if (cleanCardMessage) {
+                    y += 2;
+                    const messageText = doc.splitTextToSize(`Card Message: ${cleanCardMessage}`, pageWidth - margin * 2);
+                    doc.text(messageText, margin, y);
+                    y += messageText.length * 4.5;
+                }
+            }
+
+            if (cleanNotes) {
+                y += 3;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9);
+                doc.text('Note', margin, y);
+                y += 5;
+                doc.setFont('helvetica', 'normal');
+                const noteText = doc.splitTextToSize(cleanNotes, pageWidth - margin * 2);
+                doc.text(noteText, margin, y);
+                y += noteText.length * 4.5;
+            }
+
+            y += 6;
+            doc.setDrawColor(217, 97, 139);
+            doc.setLineWidth(0.5);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 6;
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text(`Total Amount: PHP ${parseFloat(o.price || 0).toFixed(2)}`, margin, y, { align: 'left' });
+            y += 10;
+
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(8);
+            doc.text('Thank you for ordering with LynxPrise!', pageWidth / 2, y, { align: 'center' });
+
+            doc.save(`LynxPrise_Receipt_Order_${o.id}.pdf`);
         }
-    }
 
-    if (cleanNotes) {
-        y += 3;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.text('Note', margin, y);
-        y += 5;
-        doc.setFont('helvetica', 'normal');
-        const noteText = doc.splitTextToSize(cleanNotes, pageWidth - margin * 2);
-        doc.text(noteText, margin, y);
-        y += noteText.length * 4.5;
-    }
+        function deleteOrder(event, orderId) {
+            if (event && typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
 
-    y += 6;
-    doc.setDrawColor(217, 97, 139);
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 6;
+            if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+                return;
+            }
 
-    
-    // Left-align Total Amount along the left margin
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(12);
-doc.text(`Total Amount: PHP ${parseFloat(o.price || 0).toFixed(2)}`, margin, y, { align: 'left' });
-y += 10;
-
-
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(8);
-    doc.text('Thank you for ordering with LynxPrise!', pageWidth / 2, y, { align: 'center' });
-
-    doc.save(`LynxPrise_Receipt_Order_${o.id}.pdf`);
-}
-
-function deleteOrder(event, orderId) {
-    if (event && typeof event.preventDefault === 'function') {
-        event.preventDefault();
-    }
-
-    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
-        return;
-    }
-
-    fetch("M_Dashboard.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "action=delete_order&order_id=" + orderId
-    })
-    .then(async res => {
-        const text = await res.text();
-        try {
-            return { ok: res.ok, data: JSON.parse(text) };
-        } catch (err) {
-            return { ok: res.ok, data: { success: false, message: text || 'Unexpected server response' } };
+            fetch("M_Dashboard.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: "action=delete_order&order_id=" + orderId
+            })
+            .then(async res => {
+                const text = await res.text();
+                try {
+                    return { ok: res.ok, data: JSON.parse(text) };
+                } catch (err) {
+                    return { ok: res.ok, data: { success: false, message: text || 'Unexpected server response' } };
+                }
+            })
+            .then(({ ok, data }) => {
+                if (data && data.success) {
+                    closeModal();
+                    alert("Order deleted successfully!");
+                    location.reload();
+                } else {
+                    alert((data && data.message) || "Failed to delete order.");
+                }
+            })
+            .catch(err => {
+                console.error("Delete error:", err);
+                alert("There was a problem deleting this order.");
+            });
         }
-    })
-    .then(({ ok, data }) => {
-        if (data && data.success) {
-            closeModal();
-            alert("Order deleted successfully!");
-            location.reload();
-        } else {
-            alert((data && data.message) || "Failed to delete order.");
-        }
-    })
-    .catch(err => {
-        console.error("Delete error:", err);
-        alert("There was a problem deleting this order.");
-    });
-}
 
         function closeModal() {
             document.getElementById("orderModal").style.display = "none";
