@@ -31,138 +31,218 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - LynxPrise</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         :root {
-            --primary: #d81b60; /* Pink color */
-            --primary-light: #e86c97ff; /* Light pink color */
-            --gray: #6c757d;
-            --light-gray: #dddddd;
+            --bg-cream: #fff9f6;
+            --bg-soft-pink: #fdeee8;
+            --card-bg: #fffbf9;
+            --accent-pink: #d9658b;
+            --accent-pink-hover: #c45075;
+            --text-dark: #3b2219;
+            --text-muted: #785a50;
+            --gold-border: #e8c3b0;
+            --radius-btn: 30px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            margin: 0;
-            font-family: "Poppins", sans-serif;
-            background: #fce4ec; /* Light pink background */
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-soft-pink);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .container {
             display: flex;
+            width: 100%;
             min-height: 100vh;
         }
 
-        /* LEFT SIDE IMAGE */
+        /* LEFT SIDE IMAGE & BRAND OVERLAY */
         .left-side {
             flex: 1.2;
-            background: url('assets/images/store3.jpg') no-repeat center center/cover;
+            background: linear-gradient(rgba(59, 34, 25, 0.45), rgba(59, 34, 25, 0.45)), 
+                        url('assets/images/store3.jpg') no-repeat center center/cover;
             padding: 60px;
-            color: white;
+            color: #ffffff;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
+        .lp-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            font-weight: 700;
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+        .lp-logo span {
+            font-family: 'Sacramento', cursive;
+            color: #fdeee8;
+            font-size: 40px;
+            margin-left: 2px;
+        }
+
         .left-text h1 {
-            font-size: 45px;
+            font-family: 'Playfair Display', serif;
+            font-size: 44px;
             line-height: 1.2;
             font-weight: 700;
+            margin-bottom: 15px;
         }
 
         .left-text p {
-            font-size: 18px;
-            max-width: 350px;
-            margin-top: 10px;
+            font-size: 16px;
+            max-width: 450px;
+            line-height: 1.6;
+            opacity: 0.95;
         }
 
         .left-footer a {
-            font-size: 15px;
-            background: rgba(255,255,255,0.95);
-            padding: 10px 18px;
-            border-radius: 30px;
+            display: inline-block;
+            font-size: 14px;
+            background: #ffffff;
+            padding: 12px 24px;
+            border-radius: var(--radius-btn);
             text-decoration: none;
-            color:  #d81b60;
+            color: var(--accent-pink);
             font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        /* RIGHT SIDE LOGIN FORM */
+        .left-footer a:hover {
+            background: var(--bg-soft-pink);
+            color: var(--accent-pink-hover);
+            transform: translateY(-2px);
+        }
+
+        /* RIGHT SIDE FORM CARD */
         .right-side {
             flex: 1;
-            background: var(--primary); /* Pink background for the form */
-            color: white;
-            padding: 60px 70px;
+            background: var(--bg-cream);
+            padding: 60px 80px;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            border-left: 1px solid var(--gold-border);
+        }
+
+        .form-header {
+            margin-bottom: 30px;
         }
 
         .title {
+            font-family: 'Playfair Display', serif;
             font-size: 32px;
             font-weight: 700;
-            margin-bottom: 10px;
+            color: var(--text-dark);
+            margin-bottom: 8px;
         }
 
         .subtitle {
-            font-size: 15px;
-            margin-bottom: 30px;
-            opacity: 0.9;
+            font-size: 14px;
+            color: var(--text-muted);
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 22px;
             position: relative;
         }
 
         label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-dark);
+        }
+
+        .input-wrapper {
+            position: relative;
+            width: 100%;
         }
 
         .form-control {
-            width: 87%;
-            padding: 14px 45px 14px 15px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: none;
+            width: 100%;
+            padding: 14px 45px 14px 16px;
+            font-size: 14px;
+            font-family: inherit;
+            border-radius: 10px;
+            border: 1px solid var(--gold-border);
+            background: #ffffff;
+            color: var(--text-dark);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-pink);
+            box-shadow: 0 0 0 3px rgba(217, 101, 139, 0.15);
         }
 
         .password-toggle {
             position: absolute;
             right: 15px;
-            top: 47px;
+            top: 50%;
+            transform: translateY(-50%);
             background: none;
             border: none;
-            color: #777;
+            color: var(--text-muted);
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 15px;
+            padding: 4px;
+        }
+
+        .password-toggle:hover {
+            color: var(--accent-pink);
         }
 
         button[type=submit] {
             width: 100%;
-            padding: 15px;
-            background: var(--primary-light); /* Light pink for the button */
-            color: white;
-            font-size: 18px;
+            padding: 14px;
+            background: var(--accent-pink);
+            color: #ffffff;
+            font-size: 15px;
             border: none;
-            border-radius: 10px;
-            margin-top: 15px;
+            border-radius: var(--radius-btn);
+            margin-top: 10px;
             cursor: pointer;
             font-weight: 600;
+            font-family: inherit;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 12px rgba(217, 101, 139, 0.25);
         }
 
         button[type=submit]:hover {
-            background: var(--primary); /* Darken on hover */
+            background: var(--accent-pink-hover);
         }
 
         .alert {
-            background: #ffdddd;
-            padding: 12px;
+            background: #fde8e8;
+            border: 1px solid #f8b4b4;
+            padding: 12px 16px;
             border-radius: 8px;
-            color: #b30000;
+            color: #c81e1e;
+            font-size: 14px;
             margin-bottom: 20px;
             display: flex;
+            align-items: center;
             gap: 10px;
         }
 
@@ -172,19 +252,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         .footer-links a {
-            color: #9cd3ff;
+            color: var(--text-muted);
+            font-size: 14px;
             text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
         }
 
-        @media (max-width: 900px) {
+        .footer-links a:hover {
+            color: var(--accent-pink);
+        }
+
+        /* RESPONSIVE DESIGN */
+        @media (max-width: 992px) {
+            .right-side {
+                padding: 50px 40px;
+            }
+        }
+
+        @media (max-width: 768px) {
             .container {
                 flex-direction: column;
-            }
-            .right-side {
-                padding: 40px;
+                min-height: 100vh;
             }
             .left-side {
                 display: none;
+            }
+            .right-side {
+                flex: 1;
+                width: 100%;
+                justify-content: center;
+                padding: 40px 25px;
+                border-left: none;
+            }
+            .title {
+                font-size: 28px;
             }
         }
     </style>
@@ -196,50 +298,56 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     <!-- LEFT IMAGE SIDE -->
     <div class="left-side">
-    <div class="left-text">
-        <h1>Celebrate Every Moment</h1>
-        <p>At LynxPrise, we bring you the best in gifts, flowers, balloons, and surprises. Perfect for birthdays, anniversaries, or just because! Let us help you add a little extra joy to every special occasion.</p>
+        <div>
+            <a href="index.php" class="lp-logo">Lynx<span>Prise</span></a>
+        </div>
+        <div class="left-text">
+            <h1>Celebrate Every Moment</h1>
+            <p>At LynxPrise, we bring you the best in gifts, flowers, balloons, and surprises. Perfect for birthdays, anniversaries, or special moments.</p>
+        </div>
+        <div class="left-footer">
+            <a href="Shop.php">Explore Our Shop</a>
+        </div>
     </div>
-    <div class="left-footer">
-        <a href="Shop.php">Explore Our Amazing Products</a>
-    </div>
-
-</div>
-
 
     <!-- RIGHT LOGIN SIDE -->
     <div class="right-side">    
 
-        <h2 class="title">Welcome Back</h2>
-        <p class="subtitle">Sign in to manage your orders</p>
+        <div class="form-header">
+            <h2 class="title">Welcome Back</h2>
+            <p class="subtitle">Sign in to manage your orders & store dashboard</p>
+        </div>
 
         <?php if (isset($error)): ?>
             <div class="alert">
-                <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
+                <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
             </div>
         <?php endif; ?>
 
         <form method="POST">
 
             <div class="form-group">
-                <label>Email Address</label>
-                <input type="email" name="email" class="form-control" required placeholder="name@example.com">
+                <label for="email">Email Address</label>
+                <div class="input-wrapper">
+                    <input type="email" id="email" name="email" class="form-control" required placeholder="name@example.com">
+                </div>
             </div>
 
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="password" name="password" class="form-control" required placeholder="Enter password">
-                <button type="button" class="password-toggle" onclick="togglePassword()">
-                    <i class="fas fa-eye"></i>
-                </button>
+                <label for="password">Password</label>
+                <div class="input-wrapper">
+                    <input type="password" id="password" name="password" class="form-control" required placeholder="Enter password">
+                    <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="Toggle password visibility">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
             </div>
 
             <button type="submit">Sign In</button>
         </form>
 
         <div class="footer-links">
-            <a href="#">Forgot Password?</a><br><br>
-            <!-- <a href="U_Register.php">Don’t have an account? Create one</a> -->
+            <a href="#">Forgot Password?</a>
         </div>
 
     </div>
@@ -261,4 +369,4 @@ function togglePassword() {
 </script>
 
 </body>
-</html> 
+</html>

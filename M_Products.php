@@ -1,5 +1,12 @@
 <?php
 session_start();
+
+// Security Guard: Check if the user is authenticated
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
+    header('Location: U_Login.php');
+    exit;
+}
+
 include 'U_db.php';
 
 $message = '';
@@ -460,7 +467,7 @@ $products = $pdo->query($sql)->fetchAll();
                 <li><a href="M_Categories.php">Categories</a></li>
                 <li><a href="index.php">Back To Home</a></li>
             </ul>
-            <a href="logout.php" class="btn-logout">Logout</a>
+            <a href="U_Logout.php" class="btn-logout">Logout</a>
         </div>
     </nav>
 

@@ -1,4 +1,12 @@
 <?php
+session_start();
+
+// Security Guard: Check if the user is authenticated
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
+    header('Location: U_Login.php');
+    exit;
+}
+
 include 'U_db.php';
 
 $current_date = date('Y-m-d');
@@ -12,7 +20,6 @@ function getFulfillmentType($order) {
     
     $val = strtolower(trim((string)$order['mode_of_transpo']));
     
-    // Treat '1', 'delivery', or 'ship' as Delivery. Treat '0' or 'pickup' as Pickup.
     if ($val === '1' || $val === 'delivery' || $val === 'ship') {
         return 'Delivery';
     }
@@ -34,21 +41,60 @@ function calculateTotalSales($orders) {
     return number_format($total, 2);
 }
 
-// Fetch queries
+// Fetch Active Dashboard Tables
 $sql_today = "SELECT * FROM orders WHERE DATE(date_of_pickup) = :current_date ORDER BY date_of_pickup ASC";
 $stmt_today = $pdo->prepare($sql_today);
 $stmt_today->execute([':current_date' => $current_date]);
-$today_orders = $stmt_today->fetchAll();
+$today_orders = $stmt_today->fetchAll(PDO::FETCH_ASSOC);
 
 $sql_tomorrow = "SELECT * FROM orders WHERE DATE(date_of_pickup) = :tomorrow_date ORDER BY date_of_pickup ASC";
 $stmt_tomorrow = $pdo->prepare($sql_tomorrow);
 $stmt_tomorrow->execute([':tomorrow_date' => $tomorrow_date]);
-$tomorrow_orders = $stmt_tomorrow->fetchAll();
+$tomorrow_orders = $stmt_tomorrow->fetchAll(PDO::FETCH_ASSOC);
 
 $sql_future = "SELECT * FROM orders WHERE DATE(date_of_pickup) > :tomorrow_date ORDER BY date_of_pickup ASC";
 $stmt_future = $pdo->prepare($sql_future);
 $stmt_future->execute([':tomorrow_date' => $tomorrow_date]);
-$future_orders = $stmt_future->fetchAll();
+$future_orders = $stmt_future->fetchAll(PDO::FETCH_ASSOC);
+
+// --- PREVIOUS CUSTOMER ORDERS QUERY ---
+$sql_history = "SELECT * FROM orders WHERE DATE(date_of_pickup) < :current_date OR status IN ('completed', 'cancelled') ORDER BY date_of_pickup DESC";
+$stmt_history = $pdo->prepare($sql_history);
+$stmt_history->execute([':current_date' => $current_date]);
+$previous_orders = $stmt_history->fetchAll(PDO::FETCH_ASSOC);
+
+// --- ANALYTICS DATA QUERIES ---
+$stmt_count = $pdo->query("SELECT COUNT(*) as total FROM orders");
+$total_orders_count = $stmt_count->fetchColumn();
+
+// 1. Revenue by Month
+$sql_monthly_revenue = "
+    SELECT 
+        DATE_FORMAT(date_of_pickup, '%b %Y') as month_name, 
+        SUM(price) as total_revenue 
+    FROM orders 
+    WHERE status != 'cancelled' 
+      AND YEAR(date_of_pickup) = YEAR(CURRENT_DATE())
+    GROUP BY YEAR(date_of_pickup), MONTH(date_of_pickup), DATE_FORMAT(date_of_pickup, '%b %Y')
+    ORDER BY YEAR(date_of_pickup) ASC, MONTH(date_of_pickup) ASC";
+$stmt_revenue = $pdo->query($sql_monthly_revenue);
+$revenue_data = $stmt_revenue->fetchAll(PDO::FETCH_ASSOC);
+
+$revenue_labels = json_encode(array_column($revenue_data, 'month_name'));
+$revenue_values = json_encode(array_map('floatval', array_column($revenue_data, 'total_revenue')));
+
+// 2. Order Breakdown by Status
+$sql_status_summary = "
+    SELECT 
+        COALESCE(status, 'pending') as status, 
+        COUNT(*) as total_count 
+    FROM orders 
+    GROUP BY status";
+$stmt_status = $pdo->query($sql_status_summary);
+$status_data = $stmt_status->fetchAll(PDO::FETCH_ASSOC);
+
+$status_labels = json_encode(array_map('ucwords', array_column($status_data, 'status')));
+$status_counts = json_encode(array_map('intval', array_column($status_data, 'total_count')));
 
 // Handle Status Updates
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['order_id']) && isset($_POST['status'])) {
@@ -76,6 +122,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['order_id']) && isset($
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Failed to update notes']);
+    }
+    exit;
+}
+
+// Handle Order Deletion
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_order') {
+    $order_id = $_POST['order_id'] ?? null;
+    if ($order_id) {
+        $stmt = $pdo->prepare("DELETE FROM orders WHERE id = :order_id");
+        if ($stmt->execute([':order_id' => $order_id])) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to delete order']);
+        }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Missing order ID']);
     }
     exit;
 }
@@ -109,22 +171,6 @@ function renderOrderRows($orders_list) {
     }
     return $html;
 }
-
-// Handle Order Deletion
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_order') {
-    $order_id = $_POST['order_id'] ?? null;
-    if ($order_id) {
-        $stmt = $pdo->prepare("DELETE FROM orders WHERE id = :order_id");
-        if ($stmt->execute([':order_id' => $order_id])) {
-            echo json_encode(['success' => true]);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to delete order']);
-        }
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Missing order ID']);
-    }
-    exit;
-}
 ?>
 
 <!DOCTYPE html>
@@ -132,14 +178,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="Assets/Css/style.css">
-    <title>Order List</title>
+    <title>Dashboard & Analytics</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap" rel="stylesheet">
     
-    <!-- jsPDF for generating dependable PDF receipts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
@@ -151,319 +196,114 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             --text-dark: #3b2219;
             --text-muted: #785a50;
             --gold-border: #e8c3b0;
-            --gold-accent: #c28851;
-            --radius-lg: 24px;
-            --radius-md: 16px;
             --radius-btn: 30px;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg-soft-pink); color: var(--text-dark); line-height: 1.6; }
 
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: var(--bg-soft-pink); 
-            color: var(--text-dark);
-            line-height: 1.6;
-            margin: 0; 
-            padding: 0; 
-        }
-
-        /* Navigation Bar */
-        .lp-nav {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background-color: #fff;
-            padding: 14px 5%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(59, 34, 25, 0.05);
+        /* HEADER & NAVIGATION STYLES */
+        .lp-nav { 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            background-color: #fff; 
+            padding: 14px 5%; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 2px 10px rgba(59, 34, 25, 0.05); 
             flex-wrap: wrap;
         }
+        .lp-logo { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--text-dark); text-decoration: none; }
+        .lp-logo span { font-family: 'Sacramento', cursive; color: var(--accent-pink); font-size: 32px; margin-left: 2px; }
+        .lp-nav-menu { display: flex; align-items: center; gap: 20px; }
+        .lp-nav-links { display: flex; gap: 25px; list-style: none; }
+        .lp-nav-links a { text-decoration: none; color: var(--text-dark); font-weight: 500; font-size: 15px; transition: color 0.2s; }
+        .lp-nav-links a:hover { color: var(--accent-pink); }
+        .btn-nav { background-color: var(--accent-pink); color: #fff; padding: 8px 20px; border-radius: var(--radius-btn); text-decoration: none; font-weight: 600; font-size: 14px; text-align: center; }
 
-        .lp-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-dark);
-            text-decoration: none;
-        }
-
-        .lp-logo span {
-            font-family: 'Sacramento', cursive;
-            color: var(--accent-pink);
-            font-size: 32px;
-            margin-left: 2px;
-        }
-
-        .nav-toggle {
+        .mobile-menu-toggle {
             display: none;
             background: none;
             border: none;
             font-size: 24px;
             color: var(--text-dark);
             cursor: pointer;
-            padding: 5px;
         }
 
-        .lp-nav-menu {
-            display: flex;
-            align-items: center;
-            gap: 20px;
+        /* Layout Containers */
+        .page-wrapper { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .analytics-outer-container { background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid var(--gold-border); }
+        .container { background-color: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+        /* KPI Cards */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .metric-card { background: var(--bg-cream); border: 1px solid var(--gold-border); padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card h4 { color: var(--text-muted); font-size: 13px; text-transform: uppercase; margin-bottom: 5px; }
+        .metric-card p { font-size: 20px; font-weight: 700; color: var(--accent-pink); }
+
+        /* .analytics-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .chart-card { background: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid var(--gold-border); } */
+
+        /* Responsive Grid for Charts */
+        .analytics-grid { 
+            display: grid; 
+            grid-template-columns: 2fr 1fr; 
+            gap: 20px; 
         }
 
-        .lp-nav-links {
-            display: flex;
-            gap: 25px;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        .lp-nav-links a {
-            text-decoration: none;
-            color: var(--text-dark);
-            font-weight: 500;
-            font-size: 15px;
-            transition: color 0.2s;
-        }
-
-        .lp-nav-links a:hover {
-            color: var(--accent-pink);
-        }
-
-        .btn-nav {
-            background-color: var(--accent-pink);
-            color: #fff;
-            padding: 8px 20px;
-            border-radius: var(--radius-btn);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            transition: background-color 0.2s;
-            display: inline-block;
-            text-align: center;
-        }
-
-        .btn-nav:hover {
-            background-color: var(--accent-pink-hover);
-        }
-
-        /* Responsive Layout Container */
-        .container { 
-            max-width: 1200px; 
-            margin: 20px auto; 
-            padding: 20px; 
-            background-color: white; 
-            border-radius: 10px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+        .chart-card { 
+            background: #ffffff; 
+            padding: 15px; 
+            border-radius: 12px; 
+            border: 1px solid var(--gold-border); 
+            min-width: 0; /* Critical for CSS Grid to prevent content overflow */
+            width: 100%;
         }
 
         h2, h3 { color: #d81b60; margin-bottom: 15px; }
 
-        .table-container { 
-            overflow-x: auto; 
-            -webkit-overflow-scrolling: touch;
-            margin-bottom: 20px; 
-            border: 1px solid #ddd;
-            border-radius: 6px;
-        }
-
+        .table-container { overflow-x: auto; margin-bottom: 25px; border: 1px solid #ddd; border-radius: 6px; }
         table { width: 100%; min-width: 650px; border-collapse: collapse; }
         table, th, td { border: 1px solid #ddd; }
         th, td { padding: 10px 12px; text-align: left; font-size: 14px; }
-        th { background-color: #f8f8f8; color: #d81b60; white-space: nowrap; }
+        th { background-color: #f8f8f8; color: #d81b60; }
 
-        .sales-section { 
-            margin-bottom: 20px; 
-            background-color: #f8f8f8; 
-            padding: 15px; 
-            border-radius: 8px; 
-            border: 1px solid #ddd; 
-        }
+        select.status-dropdown { width: 100%; padding: 6px; font-size: 13px; background-color: #fff; border: 1px solid #ccc; border-radius: 5px; }
 
-        select.status-dropdown { 
-            width: 100%; 
-            padding: 6px; 
-            font-size: 13px; 
-            background-color: #fff; 
-            border: 1px solid #ccc; 
-            border-radius: 5px; 
-        }
-
-        /* Modal Styles */
-        .modal { 
-            display: none; 
-            position: fixed; 
-            z-index: 1001; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            height: 100%; 
-            overflow: auto; 
-            background-color: rgba(0,0,0,0.5); 
-            padding: 15px; 
-        }
-
-        .modal-content { 
-            background-color: #fff; 
-            margin: 2% auto; 
-            padding: 20px; 
-            border: 1px solid #888; 
-            width: 100%; 
-            max-width: 650px; 
-            border-radius: 12px; 
-            position: relative; 
-        }
-
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; }
-        .close:hover { color: black; }
+        .details-btn { background-color: #4CAF50; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; }
+        .details-btn:hover { background-color: #43a047; }
         
-        .details-btn { 
-            background-color: #4CAF50; 
-            color: white; 
-            padding: 8px 14px; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            font-size: 13px; 
-        }
-        .details-btn:hover { opacity: 0.9; }
+        .receipt-btn { background-color: var(--accent-pink); color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        .receipt-btn:hover { background-color: var(--accent-pink-hover); }
 
-        .btn-delete { 
-            background-color: #f44336; 
-            color: white; 
-            border: none; 
-            padding: 8px 14px; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            font-size: 13px; 
-            font-weight: 600;
-        }
-        .btn-delete:hover { background-color: #d32f2f; }
+        .btn-delete { background-color: #ff4d4d; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; margin-left: 8px; }
+        .btn-delete:hover { background-color: #e60000; }
 
-        .receipt-btn { 
-            background-color: #d81b60; 
-            color: white; 
-            padding: 8px 14px; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            font-size: 13px; 
-            font-weight: 600; 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 5px; 
-        }
-        .receipt-btn:hover { background-color: #c2185b; }
+        /* MODAL STYLES */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 2000; overflow-y: auto; padding: 20px; }
+        .modal-content { background: #fff; border-radius: 16px; width: 100%; max-width: 650px; margin: 30px auto; padding: 25px; position: relative; border: 1px solid var(--gold-border); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        .close { position: absolute; top: 16px; right: 20px; font-size: 28px; border: none; background: none; cursor: pointer; color: var(--text-muted); }
+        .close:hover { color: var(--accent-pink); }
+        
+        .modal-grid { display: flex; flex-wrap: wrap; gap: 10px 0; }
+        .modal-grid p { width: 50%; margin-bottom: 8px; font-size: 14px; }
+        .modal-grid p.full-width { width: 100%; }
+        .modal-grid hr { width: 100%; border: 0; border-top: 1px solid #eee; margin: 10px 0; }
+        .modal-grid textarea { width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--gold-border); border-radius: 8px; margin-top: 5px; font-family: inherit; font-size: 13px; outline: none; }
 
-        .modal-header-actions {
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 15px; 
-            padding-right: 30px;
-            flex-wrap: wrap;
-            gap: 10px;
+        @media (max-width: 880px) {
+            .mobile-menu-toggle { display: block; }
+            .lp-nav-menu { display: none; width: 100%; flex-direction: column; gap: 16px; padding-top: 16px; border-top: 1px solid var(--gold-border); margin-top: 12px; }
+            .lp-nav-menu.active { display: flex; }
+            .lp-nav-links { flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+            .btn-nav { width: 100%; }
+            .modal-grid p { width: 100%; }
         }
 
-        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .modal-grid p { margin: 5px 0; font-size: 14px; word-break: break-word; }
-        .full-width { grid-column: span 2; }
-        textarea#notes { width: 100%; height: 80px; margin-top: 5px; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        }
-
-        #printable-receipt {
-            position: absolute;
-            left: -9999px;
-            top: 0;
-            width: 140mm;
-            min-height: 200mm;
-            background: #ffffff;
-            color: #3b2219;
-            box-sizing: border-box;
-            padding: 20px;
-            visibility: visible;
-            pointer-events: none;
-            z-index: 0;
-            display: block;
-        }
-
-        /* Mobile Breakpoint Adjustments */
         @media screen and (max-width: 768px) {
-            .nav-toggle {
-                display: block;
-            }
-
-            .lp-nav-menu {
-                display: none;
-                flex-direction: column;
-                width: 100%;
-                margin-top: 12px;
-                padding-top: 12px;
-                border-top: 1px solid #f0f0f0;
-                align-items: stretch;
-                gap: 15px;
-            }
-
-            .lp-nav-menu.active {
-                display: flex;
-            }
-
-            .lp-nav-links {
-                flex-direction: column;
-                gap: 12px;
-                text-align: center;
-            }
-
-            .container {
-                margin: 10px;
-                padding: 15px;
-            }
-
-            .modal {
-                padding: 10px;
-            }
-
-            .modal-content {
-                margin: 5% auto;
-                padding: 15px;
-            }
-
-            .modal-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .full-width {
-                grid-column: span 1;
-            }
-
-            .modal-actions button {
-                width: 100%;
-                margin-left: 0 !important;
-            }
-
-            .map-container-header {
-                flex-direction: column;
-                align-items: flex-start !important;
-                gap: 8px;
-            }
-
-            .map-container-header a {
-                width: 100%;
-                text-align: center;
-            }
+            .analytics-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -471,7 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     <!-- Navigation Bar -->
     <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
-        <button class="nav-toggle" onclick="toggleNav()" aria-label="Toggle navigation">☰</button>
+        <button class="mobile-menu-toggle" id="menuToggle" aria-label="Toggle Navigation">&#9776;</button>
         <div class="lp-nav-menu" id="navMenu">
             <ul class="lp-nav-links">
                 <li><a href="M_Dashboard.php">Orders</a></li>
@@ -483,67 +323,99 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         </div>
     </nav>
 
-    <div class="container">
-        <h2>Order List</h2>
+    <div class="page-wrapper">
+        <!-- ANALYTICS CONTAINER -->
+        <div class="analytics-outer-container">
+            <h2>Business Analytics Overview</h2>
+            
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h4>Total System Orders</h4>
+                    <p><?php echo number_format($total_orders_count); ?></p>
+                </div>
+                <div class="metric-card">
+                    <h4>Today's Sales</h4>
+                    <p>₱<?php echo calculateTotalSales($today_orders); ?></p>
+                </div>
+                <div class="metric-card">
+                    <h4>Tomorrow's Sales</h4>
+                    <p>₱<?php echo calculateTotalSales($tomorrow_orders); ?></p>
+                </div>
+                <div class="metric-card">
+                    <h4>Upcoming Sales</h4>
+                    <p>₱<?php echo calculateTotalSales($future_orders); ?></p>
+                </div>
+            </div>
 
-        <div class="sales-section">
-            <h3>Total Sales</h3>
-            <p><strong>Today's Sales:</strong> ₱<?php echo calculateTotalSales($today_orders); ?></p>
-            <p><strong>Tomorrow's Sales:</strong> ₱<?php echo calculateTotalSales($tomorrow_orders); ?></p>
-            <p><strong>Future Sales:</strong> ₱<?php echo calculateTotalSales($future_orders); ?></p>
+            <div class="analytics-grid">
+                <div class="chart-card">
+                    <h4 style="margin-bottom: 10px; color: var(--text-dark);">Monthly Revenue Overview</h4>
+                    <canvas id="revenueChart" style="max-height: 240px;"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h4 style="margin-bottom: 10px; color: var(--text-dark);">Order Status Distribution</h4>
+                    <canvas id="statusChart" style="max-height: 240px;"></canvas>
+                </div>
+            </div>
         </div>
 
-        <h3>Today's Orders</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product Name</th><th>Full Name</th><th>Phone Number</th><th>Type</th><th>Date</th><th>Price</th><th>Details</th><th>Status</th>
-                    </tr>
-                </thead>
-                <tbody><?php echo renderOrderRows($today_orders); ?></tbody>
-            </table>
-        </div>
+        <!-- ORDER LIST & DASHBOARD CARD -->
+        <div class="container">
+            <h2>Order List & Dashboard</h2>
 
-        <h3>Tomorrow's Orders</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product Name</th><th>Full Name</th><th>Phone Number</th><th>Type</th><th>Date</th><th>Price</th><th>Details</th><th>Status</th>
-                    </tr>
-                </thead>
-                <tbody><?php echo renderOrderRows($tomorrow_orders); ?></tbody>
-            </table>
-        </div>
+            <h3>Today's Orders</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Product Name</th><th>Full Name</th><th>Phone Number</th><th>Type</th><th>Date</th><th>Price</th><th>Details</th><th>Status</th></tr>
+                    </thead>
+                    <tbody><?php echo renderOrderRows($today_orders); ?></tbody>
+                </table>
+            </div>
 
-        <h3>Future Orders</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product Name</th><th>Full Name</th><th>Phone Number</th><th>Type</th><th>Date</th><th>Price</th><th>Details</th><th>Status</th>
-                    </tr>
-                </thead>
-                <tbody><?php echo renderOrderRows($future_orders); ?></tbody>
-            </table>
+            <h3>Tomorrow's Orders</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Product Name</th><th>Full Name</th><th>Phone Number</th><th>Type</th><th>Date</th><th>Price</th><th>Details</th><th>Status</th></tr>
+                    </thead>
+                    <tbody><?php echo renderOrderRows($tomorrow_orders); ?></tbody>
+                </table>
+            </div>
+
+            <h3>Future Orders</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Product Name</th><th>Full Name</th><th>Phone Number</th><th>Type</th><th>Date</th><th>Price</th><th>Details</th><th>Status</th></tr>
+                    </thead>
+                    <tbody><?php echo renderOrderRows($future_orders); ?></tbody>
+                </table>
+            </div>
+
+            <h3>Previous Customer Orders & History</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Product Name</th><th>Full Name</th><th>Phone Number</th><th>Type</th><th>Date</th><th>Price</th><th>Details</th><th>Status</th></tr>
+                    </thead>
+                    <tbody><?php echo renderOrderRows($previous_orders); ?></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Modal -->
+    <!-- DYNAMIC ORDER MODAL -->
     <div id="orderModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
-            <div class="modal-header-actions">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-right: 30px;">
                 <h2 style="margin: 0;">Order Details</h2>
                 <button class="receipt-btn" id="download-receipt-btn">🧾 Download Receipt</button>
             </div>
             <div id="order-details"></div>
         </div>
     </div>
-
-    <!-- Hidden Printable Receipt -->
-    <div id="printable-receipt"></div>
 
     <script>
         const STORE_LAT = 10.7936; 
@@ -552,10 +424,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 
         let currentActiveOrder = null;
 
-        function toggleNav() {
-            const navMenu = document.getElementById('navMenu');
-            navMenu.classList.toggle('active');
-        }
+        document.addEventListener("DOMContentLoaded", function() {
+            // Revenue Bar Chart
+            const revCtx = document.getElementById('revenueChart').getContext('2d');
+            new Chart(revCtx, {
+                type: 'bar',
+                data: {
+                    labels: <?php echo $revenue_labels; ?>,
+                    datasets: [{
+                        label: 'Revenue (₱)',
+                        data: <?php echo $revenue_values; ?>,
+                        backgroundColor: 'rgba(217, 101, 139, 0.75)',
+                        borderColor: '#d9658b',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { callback: value => '₱' + value } } }
+                }
+            });
+
+            // Status Doughnut Chart
+            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: <?php echo $status_labels; ?>,
+                    datasets: [{
+                        data: <?php echo $status_counts; ?>,
+                        backgroundColor: ['#e2a0b5', '#4CAF50', '#f44336', '#ffb74d']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        });
+
+        // Mobile Menu Toggle
+        const menuToggle = document.getElementById('menuToggle');
+        const navMenu = document.getElementById('navMenu');
+        menuToggle.addEventListener('click', () => { navMenu.classList.toggle('active'); });
 
         function openModal(orderId) {
             var modal = document.getElementById("orderModal");
@@ -566,7 +476,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 .then(data => {
                     if (data.success) {
                         const o = data.order;
-                        currentActiveOrder = o;
+                        currentActiveOrder = o; 
                         
                         const val = String(o.mode_of_transpo || '').trim().toLowerCase();
                         const isDelivery = (val === '1' || val === 'delivery' || val === 'ship');
@@ -631,15 +541,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                     <p class="full-width"><strong>Coordinates:</strong> ${lat && lng ? `${lat}, ${lng}` : 'Not specified'}</p>
                                     
                                     <div class="full-width" style="margin-top:10px;">
-                                        <div class="map-container-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                             <strong>Delivery Route & Location:</strong>
                                             <a href="${directionsUrl}" target="_blank" class="details-btn" style="text-decoration:none; display:inline-block; background-color:#1a73e8;">
-                                                📍 Get Directions
+                                                📍 Get Directions on Google Maps
                                             </a>
                                         </div>
                                         <iframe 
                                             width="100%" 
-                                            height="200" 
+                                            height="230" 
                                             style="border:0; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.15);" 
                                             loading="lazy" 
                                             allowfullscreen 
@@ -653,10 +563,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                                 <div class="full-width" style="margin-top:10px;">
                                     <label for="notes"><strong>Admin Notes:</strong></label>
                                     <textarea id="notes">${cleanNotes}</textarea>
-                                    <div class="modal-actions">
-                                        <button type="button" class="details-btn" onclick="updateNotes(${orderId})">Save Notes</button>
-                                        <button type="button" class="btn-delete" onclick="deleteOrder(event, ${orderId})">Delete Order</button>
-                                    </div>
+                                    <button type="button" class="details-btn" style="margin-top:8px;" onclick="updateNotes(${orderId})">Save Notes</button>
+                                    <button type="button" class="btn-delete" onclick="deleteOrder(event, ${orderId})">Delete Order</button>
                                 </div>
                             </div>
                         `;
@@ -786,7 +694,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 y += 3;
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(9);
-                doc.text('Note', margin, y);
+                doc.text('Admin Notes', margin, y);
                 y += 5;
                 doc.setFont('helvetica', 'normal');
                 const noteText = doc.splitTextToSize(cleanNotes, pageWidth - margin * 2);
@@ -878,6 +786,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 if (data.success) alert("Notes updated successfully!");
                 else alert("Failed to update notes.");
             });
+        }
+
+        window.onclick = function(e) {
+            const modal = document.getElementById("orderModal");
+            if (e.target === modal) {
+                closeModal();
+            }
         }
     </script>
 </body>

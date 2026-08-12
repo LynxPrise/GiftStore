@@ -1,5 +1,12 @@
 <?php
 session_start();
+
+// Security Guard: Check if the user is authenticated
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
+    header('Location: U_Login.php');
+    exit;
+}
+
 // Include database connection (adjust path/filename if needed)
 require_once 'U_db.php'; 
 
@@ -84,7 +91,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_category'])) {
 
             if (move_uploaded_file($fileTmpPath, $destination)) {
                 $imagePath = $destination;
-                // Optionally remove old file if it exists
                 if ($existingImg && file_exists($existingImg) && strpos($existingImg, 'default') === false) {
                     @unlink($existingImg);
                 }
@@ -115,7 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_category'])) {
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
     $delId = intval($_GET['id']);
     try {
-        // Fetch image path to delete file from directory
         $stmtFetch = $pdo->prepare("SELECT categoryImage FROM categories WHERE id = :id");
         $stmtFetch->execute([':id' => $delId]);
         $cat = $stmtFetch->fetch();
@@ -166,15 +171,14 @@ try {
     :root {
         --bg-cream: #fff9f6;
         --bg-soft-pink: #fdeee8;
-        --card-bg: #fffbf9;
+        --card-bg: #ffffff;
         --accent-pink: #d9658b;
         --accent-pink-hover: #c45075;
         --text-dark: #3b2219;
         --text-muted: #785a50;
         --gold-border: #e8c3b0;
-        --gold-accent: #c28851;
-        --radius-lg: 24px;
-        --radius-md: 16px;
+        --radius-lg: 16px;
+        --radius-md: 12px;
         --radius-btn: 30px;
     }
 
@@ -194,84 +198,155 @@ try {
     }
 
     .admin-container { 
-        max-width: 1100px; 
-        margin: 0 auto; 
-        padding: 0 16px 40px 16px;
+        max-width: 1150px; 
+        margin: 30px auto; 
+        padding: 0 20px 40px 20px;
+    }
+
+    /* Main Container Card matching M_Products */
+    .main-card {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        padding: 32px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        border: 1px solid #f2e3dc;
     }
 
     .header-bar { 
         display: flex; 
         justify-content: space-between; 
         align-items: center; 
-        margin-bottom: 24px; 
-        margin-top: 24px; 
+        margin-bottom: 24px;
         flex-wrap: wrap;
         gap: 16px;
     }
 
     .header-bar h1 { 
         font-family: 'Playfair Display', serif; 
-        font-size: 32px; 
-        color: var(--text-dark); 
+        font-size: 28px; 
+        color: #c2185b; 
+        font-weight: 700;
     }
 
     .btn-add-modal { 
-        background: var(--accent-pink); 
+        background: #e0668b; 
         color: #fff; 
         border: none; 
-        padding: 12px 22px; 
-        border-radius: 30px; 
+        padding: 10px 22px; 
+        border-radius: 20px; 
         font-weight: 600; 
         cursor: pointer; 
         text-decoration: none; 
         display: inline-block; 
         text-align: center;
+        font-size: 14px;
         transition: background-color 0.2s ease;
     }
-    .btn-add-modal:hover { background: var(--accent-pink-hover); }
+    .btn-add-modal:hover { background: #c45075; }
+
+    /* Subheader & Search Container */
+    .catalog-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .catalog-bar h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: 20px;
+        color: #c2185b;
+        font-weight: 700;
+    }
+
+    .search-box {
+        position: relative;
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 8px 16px 8px 36px;
+        border: 1px solid #e0e0e0;
+        border-radius: 20px;
+        font-size: 13px;
+        outline: none;
+        background-color: #fafafa;
+        color: #333;
+    }
+
+    .search-box input::placeholder {
+        color: #9e9e9e;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9e9e9e;
+        font-size: 14px;
+    }
 
     /* Alert Banner */
-    .alert-banner { padding: 14px 18px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+    .alert-banner { padding: 12px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
     .alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     .alert-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
 
-    /* Table Container & Responsiveness */
-    .table-card { 
-        background: var(--card-bg); 
-        border: 1px solid var(--gold-border); 
-        border-radius: var(--radius-lg); 
-        overflow-x: auto; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
-        -webkit-overflow-scrolling: touch;
+    /* Table Container & Layout */
+    .table-container {
+        border: 1px solid #eee;
+        border-radius: 4px;
+        overflow-x: auto;
     }
 
     table { 
         width: 100%; 
         border-collapse: collapse; 
         text-align: left; 
-        min-width: 600px;
+        min-width: 650px;
     }
 
-    th, td { padding: 16px 20px; border-bottom: 1px solid #f2e3dc; vertical-align: middle; }
-    th { background: var(--bg-cream); font-weight: 700; color: var(--text-dark); font-size: 14px; white-space: nowrap; }
+    th, td { padding: 16px 20px; border-bottom: 1px solid #eee; border-right: 1px solid #eee; vertical-align: top; }
+    th:last-child, td:last-child { border-right: none; }
+    th { background: #fafafa; font-weight: 700; color: #c2185b; font-size: 13px; white-space: nowrap; }
     tr:last-child td { border-bottom: none; }
 
-    .cat-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid var(--gold-border); background: #f8f8f8; }
+    .cat-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; background: #f8f8f8; }
     
+    .cat-name {
+        font-weight: 700;
+        color: #222;
+        font-size: 14px;
+        margin-bottom: 4px;
+    }
+
+    .cat-desc {
+        font-size: 12px;
+        color: #666;
+        line-height: 1.4;
+    }
+
+    /* Matching Action Buttons (Blue & Red) */
     .action-btn { 
-        padding: 6px 14px; 
-        border-radius: 20px; 
+        padding: 6px 16px; 
+        border-radius: 4px; 
         font-size: 12px; 
-        font-weight: 600; 
+        font-weight: 500; 
         text-decoration: none; 
         display: inline-block; 
-        margin: 2px 3px; 
+        margin: 2px 2px; 
         cursor: pointer; 
         border: none; 
-        white-space: nowrap;
+        color: #fff;
     }
-    .btn-edit { background: #e3f2fd; color: #1565c0; }
-    .btn-delete { background: #ffebee; color: #c62828; }
+    .btn-edit { background: #008be3; }
+    .btn-edit:hover { background: #0076c2; }
+    .btn-delete { background: #ff4d4d; }
+    .btn-delete:hover { background: #e03e3e; }
 
     /* Modal Styling */
     .modal-overlay { 
@@ -290,7 +365,7 @@ try {
     }
 
     .modal-box { 
-        background: var(--bg-cream); 
+        background: #fff; 
         border-radius: var(--radius-lg); 
         width: 100%; 
         max-width: 500px; 
@@ -303,14 +378,14 @@ try {
     }
 
     .modal-close { position: absolute; top: 16px; right: 20px; font-size: 24px; border: none; background: none; cursor: pointer; color: var(--text-muted); }
-    .modal-title { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 20px; }
+    .modal-title { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 20px; color: #c2185b; }
 
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-    .form-control { width: 100%; padding: 10px 14px; border: 1px solid var(--gold-border); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; outline: none; background: #fff; }
+    .form-control { width: 100%; padding: 10px 14px; border: 1px solid var(--gold-border); border-radius: 8px; font-family: inherit; font-size: 14px; outline: none; background: #fff; }
     textarea.form-control { resize: vertical; min-height: 80px; }
 
-    .btn-submit { width: 100%; background: var(--accent-pink); color: #fff; border: none; padding: 12px; border-radius: 25px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+    .btn-submit { width: 100%; background: #e0668b; color: #fff; border: none; padding: 12px; border-radius: 20px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; }
     .btn-submit:hover { background: var(--accent-pink-hover); }
 
     /* Navigation Bar */
@@ -367,9 +442,9 @@ try {
     }
 
     .btn-nav {
-        background-color: var(--accent-pink);
+        background-color: #e0668b;
         color: #fff;
-        padding: 10px 24px;
+        padding: 8px 22px;
         border-radius: var(--radius-btn);
         text-decoration: none;
         font-weight: 600;
@@ -431,8 +506,17 @@ try {
             text-align: center;
         }
 
+        .catalog-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-box {
+            max-width: 100%;
+        }
+
         .header-bar h1 {
-            font-size: 26px;
+            font-size: 24px;
         }
 
         .btn-add-modal {
@@ -466,68 +550,78 @@ try {
     </nav>
 
   <div class="admin-container">
-    <div class="header-bar">
-      <h1>Manage Categories</h1>
-      <button class="btn-add-modal" onclick="openAddModal()">+ Add New Category</button>
-    </div>
+    <div class="main-card">
+        <!-- HEADER INSIDE CARD -->
+        <div class="header-bar">
+          <h1>Manage Categories</h1>
+          <button class="btn-add-modal" onclick="openAddModal()">+ Add New Category</button>
+        </div>
 
-    <?php if (!empty($message)): ?>
-      <div class="alert-banner alert-<?= $message_type ?>">
-        <?= htmlspecialchars($message) ?>
-      </div>
-    <?php endif; ?>
+        <!-- CATALOG SUBHEADER & SEARCH BAR INSIDE CARD -->
+        <div class="catalog-bar">
+          <h2>Category Catalog</h2>
+          <div class="search-box">
+             <span class="search-icon">🔍</span>
+             <input type="text" id="searchInput" onkeyup="filterCategories()" placeholder="Search category...">
+          </div>
+        </div>
 
-    <div class="table-card">
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Image</th>
-            <th>Category Name</th>
-            <th>Description</th>
-            <th style="width: 160px; text-align: center;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($categories)): ?>
-            <tr>
-              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
-                No categories found. Click "+ Add New Category" to create one.
-              </td>
-            </tr>
-          <?php else: ?>
-            <?php foreach ($categories as $cat): ?>
+        <?php if (!empty($message)): ?>
+          <div class="alert-banner alert-<?= $message_type ?>">
+            <?= htmlspecialchars($message) ?>
+          </div>
+        <?php endif; ?>
+
+        <!-- TABLE CATALOG INSIDE CARD -->
+        <div class="table-container">
+          <table id="categoriesTable">
+            <thead>
               <tr>
-                <td><strong>#<?= $cat['id'] ?></strong></td>
-                <td>
-                  <?php if (!empty($cat['categoryImage']) && file_exists($cat['categoryImage'])): ?>
-                    <img src="<?= htmlspecialchars($cat['categoryImage']) ?>" class="cat-thumb" alt="Category Image" />
-                  <?php else: ?>
-                    <div class="cat-thumb" style="display:flex; align-items:center; justify-content:center; font-size:10px; color:#aaa;">No Image</div>
-                  <?php endif; ?>
-                </td>
-                <td><strong><?= htmlspecialchars($cat['categoryName']) ?></strong></td>
-                <td>
-                  <span style="font-size: 13px; color: var(--text-muted);">
-                    <?= !empty($cat['description']) ? htmlspecialchars(substr($cat['description'], 0, 90)) . (strlen($cat['description']) > 90 ? '...' : '') : '<em>No description</em>' ?>
-                  </span>
-                </td>
-                <td style="text-align: center;">
-                  <button type="button" class="action-btn btn-edit" 
-                          onclick='openEditModal(<?= json_encode($cat) ?>)'>
-                    Edit
-                  </button>
-                  <a href="M_Categories.php?action=delete&id=<?= $cat['id'] ?>" 
-                     class="action-btn btn-delete" 
-                     onclick="return confirm('Are you sure you want to delete this category?');">
-                    Delete
-                  </a>
-                </td>
+                <th style="width: 100px;">Image</th>
+                <th>Name & Description</th>
+                <th style="width: 140px; text-align: center;">Actions</th>
               </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              <?php if (empty($categories)): ?>
+                <tr>
+                  <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                    No categories found. Click "+ Add New Category" to create one.
+                  </td>
+                </tr>
+              <?php else: ?>
+                <?php foreach ($categories as $cat): ?>
+                  <tr>
+                    <td>
+                      <?php if (!empty($cat['categoryImage']) && file_exists($cat['categoryImage'])): ?>
+                        <img src="<?= htmlspecialchars($cat['categoryImage']) ?>" class="cat-thumb" alt="Category Image" />
+                      <?php else: ?>
+                        <div class="cat-thumb" style="display:flex; align-items:center; justify-content:center; font-size:10px; color:#aaa;">No Image</div>
+                      <?php endif; ?>
+                    </td>
+                    <td>
+                      <div class="cat-name"><?= htmlspecialchars($cat['categoryName']) ?></div>
+                      <div class="cat-desc">
+                        <?= !empty($cat['description']) ? htmlspecialchars($cat['description']) : '<em>No description available.</em>' ?>
+                      </div>
+                    </td>
+                    <td style="text-align: center;">
+                      <button type="button" class="action-btn btn-edit" 
+                              onclick='openEditModal(<?= json_encode($cat) ?>)'>
+                        Edit
+                      </button>
+                      <a href="M_Categories.php?action=delete&id=<?= $cat['id'] ?>" 
+                         class="action-btn btn-delete" 
+                         onclick="return confirm('Are you sure you want to delete this category?');">
+                        Delete
+                      </a>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
     </div>
   </div>
 
@@ -600,6 +694,26 @@ try {
     menuToggle.addEventListener('click', () => {
       navMenu.classList.toggle('active');
     });
+
+    // Client-side Category Search Filtering
+    function filterCategories() {
+      const input = document.getElementById('searchInput');
+      const filter = input.value.toLowerCase();
+      const table = document.getElementById('categoriesTable');
+      const tr = table.getElementsByTagName('tr');
+
+      for (let i = 1; i < tr.length; i++) {
+        const td = tr[i].getElementsByTagName('td')[1]; // Name & Description column
+        if (td) {
+          const textValue = td.textContent || td.innerText;
+          if (textValue.toLowerCase().indexOf(filter) > -1) {
+            tr[i].style.display = "";
+          } else {
+            tr[i].style.display = "none";
+          }
+        }
+      }
+    }
 
     function openAddModal() {
       document.getElementById('addModal').style.display = 'flex';
