@@ -223,6 +223,7 @@ $products = $pdo->query($sql)->fetchAll();
         <ul class="lp-nav-links">
             <li><a href="M_Dashboard.php">Orders</a></li>
             <li><a href="M_Products.php">Products</a></li>
+            <li><a href="M_Categories.php">Categories</a></li>
             <li><a href="index.php">Back To Home</a></li>
         </ul>
         <a href="logout.php" class="btn-logout">Logout</a>

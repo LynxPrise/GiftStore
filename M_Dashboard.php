@@ -301,6 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         <ul class="lp-nav-links">
             <li><a href="M_Dashboard.php">Orders</a></li>
             <li><a href="M_Products.php">Products</a></li>
+            <li><a href="M_Categories.php">Categories</a></li>
             <li><a href="index.php">Back To Home</a></li>
         </ul>
         <a href="U_Logout.php" class="btn-nav">Logout</a>
@@ -617,7 +618,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         y += 3;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
-        doc.text('Admin Notes', margin, y);
+        doc.text('Note', margin, y);
         y += 5;
         doc.setFont('helvetica', 'normal');
         const noteText = doc.splitTextToSize(cleanNotes, pageWidth - margin * 2);

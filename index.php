@@ -1,3 +1,17 @@
+<?php
+session_start();
+require_once 'U_db.php'; // Includes $pdo database connection
+
+$categories = [];
+
+try {
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $stmt_cats = $pdo->query("SELECT * FROM categories");
+    $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // Database fallback or handling error silently for display
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -274,27 +288,37 @@
 
     .lp-categories-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 24px;
     }
 
-    .lp-category-card {
-      background: var(--card-bg);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      text-align: left;
-      border: 1px solid rgba(232, 195, 176, 0.4);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      box-shadow: 0 4px 20px rgba(59, 34, 25, 0.02);
-      transition: transform 0.2s, box-shadow 0.2s;
-      overflow: hidden;
+    /* Clickable Category Card Wrapper */
+    .lp-category-card-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
     }
 
-    .lp-category-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 10px 25px rgba(59, 34, 25, 0.05);
+    .lp-category-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    text-align: left;
+    border: 1px solid rgba(232, 195, 176, 0.4);
+    display: flex;
+    flex-direction: column;
+    /* justify-content: space-between; <-- REMOVE OR COMMENT OUT THIS LINE */
+    box-shadow: 0 4px 20px rgba(59, 34, 25, 0.02);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    overflow: hidden;
+    height: 100%;
+    cursor: pointer;
+}
+
+    .lp-category-card-link:hover .lp-category-card {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 30px rgba(217, 101, 139, 0.15);
+      border-color: var(--accent-pink);
     }
 
     .lp-cat-image-wrap {
@@ -313,8 +337,8 @@
       transition: transform 0.3s ease;
     }
 
-    .lp-category-card:hover .lp-cat-image-wrap img {
-      transform: scale(1.04);
+    .lp-category-card-link:hover .lp-cat-image-wrap img {
+      transform: scale(1.05);
     }
 
     .lp-cat-title {
@@ -322,21 +346,33 @@
       font-size: 22px;
       color: var(--text-dark);
       margin-bottom: 12px;
+      transition: color 0.2s;
+    }
+
+    .lp-category-card-link:hover .lp-cat-title {
+      color: var(--accent-pink);
     }
 
     .lp-cat-desc {
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 0; /* Changed from 24px to 0 to prevent extra bottom margin */
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 
-    .lp-cat-tags {
-      font-size: 12px;
-      color: var(--gold-accent);
-      font-weight: 600;
+    .lp-cat-action {
+      font-size: 13px;
+      color: var(--accent-pink);
+      font-weight: 700;
       border-top: 1px solid var(--bg-soft-pink);
       padding-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
     /* How It Works Section */
@@ -531,13 +567,13 @@
         <div class="lp-hero-grid">
           <div class="lp-hero-content">
             <div class="lp-badge">
-              📍 Eastern Visayas’ Premier Gift & Surprise Specialists
+              📍Premier Custom Gift & Surprise Shop
             </div>
             <h1 class="lp-hero-title">
               Unforgettable <span>Surprises</span> & Custom Gifts Crafted for Your Special Moments
             </h1>
             <p class="lp-hero-subtitle">
-              From handcrafted floral arrangements and custom balloon setups to delicious cakes and curated gift boxes — we bring your grandest celebration ideas to life.
+              From custom bouquets and balloons to delicious choco moist cakes, we craft every surprise with care. Ready for easy store pick-up or local doorstep delivery.
             </p>
             <div class="lp-hero-actions">
               <a href="#categories" class="btn-hero-primary">Browse Surprise Packages</a>
@@ -565,120 +601,79 @@
       <div class="lp-solution-content">
         <h2 class="lp-solution-title">Planning a Special Surprise Shouldn't Be Stressful</h2>
         <p class="lp-solution-text">
-          Trying to coordinate flowers from one shop, balloons from another, and a custom cake from somewhere else is time-consuming and risky. One late delivery can ruin an entire moment.
+          Trying to coordinate flowers from one shop, balloons from another, and a gift from somewhere else is time-consuming and risky. One late plan can ruin a special moment.
         </p>
         <p class="lp-solution-text">
-          At LynxPrise, we handle everything under one roof. Whether it's a romantic gesture, a milestone birthday, or a grand event surprise, we design, assemble, and deliver a complete, seamless experience straight to your recipient's door.
+          At LynxPrise, we handle everything under one roof. Whether it's a romantic gesture, a milestone birthday, or an event surprise, we design and assemble a complete, seamless gift package for you. Conveniently pick up your order directly from our shop or choose local delivery right to your recipient's door.
         </p>
       </div>
     </section>
+    
 
-    <!-- Core Categories Section -->
+    <!-- Core Categories Section (Dynamic Database Data & Clickable Cards) -->
     <section class="lp-categories-section" id="categories">
       <div class="lp-wrapper">
         <div class="lp-section-subtitle">Choose Your Experience</div>
         <h2 class="lp-section-title">Our Core Categories</h2>
         
         <div class="lp-categories-grid">
-          <!-- 1. Flowers -->
-          <div class="lp-category-card">
-            <div>
-              <div class="lp-cat-image-wrap">
-                <img src="Assets/Images/category-flowers.jpg" alt="Flowers">
-              </div>
-              <h3 class="lp-cat-title">Flowers</h3>
-              <p class="lp-cat-desc">Fresh, dried, and styled floral arrangements for every occasion — from romantic roses to creative money bouquets.</p>
-            </div>
-            <div class="lp-cat-tags">Roses, tulips, sunflowers, money bouquets, custom wraps</div>
-          </div>
-
-          <!-- 2. Custom Flower Bouquets -->
-          <div class="lp-category-card">
-            <div>
-              <div class="lp-cat-image-wrap">
-                <img src="Assets/Images/category-bouquets.jpg" alt="Custom Flower Bouquets">
-              </div>
-              <h3 class="lp-cat-title">Custom Bouquets</h3>
-              <p class="lp-cat-desc">Creative non-floral arrangements featuring cash, treats, coffee, chocolates, or skincare items tailored for any gift occasion.</p>
-            </div>
-            <div class="lp-cat-tags">Money bouquets, chocolate bouquets, coffee bouquets, candy & skincare bouquets</div>
-          </div>
-
-          <!-- 3. Balloon Decor & Setups -->
-          <div class="lp-category-card">
-            <div>
-              <div class="lp-cat-image-wrap">
-                <img src="Assets/Images/category-balloons.jpg" alt="Balloon Decor & Setups">
-              </div>
-              <h3 class="lp-cat-title">Balloon Decor & Bobo Gifts</h3>
-              <p class="lp-cat-desc">Vibrant balloon styling, customized vinyl lettering, and clear Bobo gift globes filled with surprises, lights, and treats.</p>
-            </div>
-            <div class="lp-cat-tags">Bobo balloons for gifts, personalized vinyl prints, helium bunches, LED light integration</div>
-          </div>
-
-          <!-- 4. Celebration Cakes & Sweets -->
-          <div class="lp-category-card">
-            <div>
-              <div class="lp-cat-image-wrap">
-                <img src="Assets/Images/category-cakes.jpg" alt="Celebration Cakes & Sweets">
-              </div>
-              <h3 class="lp-cat-title">Celebration Cakes & Sweets</h3>
-              <p class="lp-cat-desc">Delicious, beautifully styled cakes designed to match your specific surprise theme.</p>
-            </div>
-            <div class="lp-cat-tags">Bento cakes, multi-tier custom designs, cupcake add-ons</div>
-          </div>
-
-          <!-- 5. Curated Gifts & Souvenirs -->
-          <div class="lp-category-card">
-            <div>
-              <div class="lp-cat-image-wrap">
-                <img src="Assets/Images/category-gifts.jpg" alt="Curated Gifts & Souvenirs">
-              </div>
-              <h3 class="lp-cat-title">Curated Gifts & Souvenirs</h3>
-              <p class="lp-cat-desc">Memorable keepsakes, personalized gift boxes, and event favors tailored to your recipient.</p>
-            </div>
-            <div class="lp-cat-tags">Custom mugs, photo prints, luxury baskets, event souvenirs</div>
-          </div>
-
-          <!-- 6. Full Surprise Packages -->
-          <div class="lp-category-card">
-            <div>
-              <div class="lp-cat-image-wrap">
-                <img src="Assets/Images/category-packages.jpg" alt="Full Surprise Packages">
-              </div>
-              <h3 class="lp-cat-title">Full Surprise Packages</h3>
-              <p class="lp-cat-desc">The ultimate hassle-free combination of flowers, balloons, cake, and a coordinated delivery setup.</p>
-            </div>
-            <div class="lp-cat-tags">All-in-one sets for birthdays, anniversaries and grand proposals</div>
-          </div>
+          <?php if (!empty($categories)): ?>
+            <?php foreach ($categories as $index => $cat): 
+              $catName = htmlspecialchars($cat['categoryName'] ?? ($cat['categoryname'] ?? 'Category'));
+              $catDesc = htmlspecialchars($cat['description'] ?? ($cat['categoryDescription'] ?? 'Custom gift options and surprise items tailored for your occasion.'));
+              $catImgRaw = $cat['categoryImage'] ?? ($cat['categoryimage'] ?? '');
+              $catImg = htmlspecialchars(!empty($catImgRaw) ? $catImgRaw : 'Assets/Images/placeholder.jpg');
+            ?>
+              <!-- <a href="U_OrderPage.php" class="lp-category-card-link"> -->
+                    <a href="U_OrderPage.php?category=<?= urlencode($cat['category_id'] ?? $cat['id']) ?>" class="lp-category-card-link">
+      <div class="lp-category-card">
+        <div class="lp-cat-image-wrap">
+          <img src="<?= $catImg ?>" alt="<?= $catName ?>">
+        </div>
+        <h3 class="lp-cat-title"><?= $catName ?></h3>
+        <?php if ($catDesc !== ''): ?>
+          <p class="lp-cat-desc"><?= $catDesc ?></p>
+        <?php endif; ?>
+      </div>
+    </a>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">No categories currently available.</p>
+          <?php endif; ?>
         </div>
       </div>
     </section>
 
     <!-- How It Works Section -->
-    <section class="lp-how-section" id="how-it-works">
-      <div class="lp-wrapper">
-        <h2 class="lp-section-title">How It Works</h2>
-        <div class="lp-steps-grid">
-          <div class="lp-step-item">
-            <div class="lp-step-badge">1</div>
-            <h3 class="lp-step-title">Select your package or items</h3>
-            <p class="lp-step-desc">Choose from our ready-made surprise combinations or select individual items to build a custom order.</p>
-          </div>
-          <div class="lp-step-item">
-            <div class="lp-step-badge">2</div>
-            <h3 class="lp-step-title">Set delivery & custom details</h3>
-            <p class="lp-step-desc">Pick your delivery date, time slot, recipient address, and write a personalized card message.</p>
-          </div>
-          <div class="lp-step-item">
-            <div class="lp-step-badge">3</div>
-            <h3 class="lp-step-title">We handle the magic</h3>
-            <p class="lp-step-desc">Our team prepares your arrangements and delivers the surprise — with instant order confirmation sent straight to your Messenger.</p>
-          </div>
+  <section class="lp-how-section" id="how-it-works">
+    <div class="lp-wrapper">
+      <h2 class="lp-section-title">How It Works</h2>
+      
+      <div class="lp-steps-grid">
+        <div class="lp-step-item">
+          <div class="lp-step-badge">1</div>
+          <h3 class="lp-step-title">Select your package or items</h3>
+          <p class="lp-step-desc">Choose from our ready-made surprise combinations or select individual items to build a custom order.</p>
         </div>
+
+        <div class="lp-step-item">
+          <div class="lp-step-badge">2</div>
+          <h3 class="lp-step-title">Choose pick-up or delivery details</h3>
+          <p class="lp-step-desc">Select your preferred time slot, pick-up or delivery option, address details, and include a personalized card message.</p>
+        </div>
+
+        <div class="lp-step-item">
+          <div class="lp-step-badge">3</div>
+          <h3 class="lp-step-title">We craft your surprise</h3>
+          <p class="lp-step-desc">Our team handcrafts your order for easy shop pick-up or direct local delivery — with instant confirmation sent to your Messenger.</p>
+        </div>
+      </div>
+
+      <div class="lp-cta-wrapper">
         <a href="U_OrderPage.php" class="btn-hero-primary">Start Your Order</a>
       </div>
-    </section>
+    </div>
+  </section>
 
     <!-- Testimonials HTML Section -->
     <section class="lp-testimonials-section" id="testimonials">

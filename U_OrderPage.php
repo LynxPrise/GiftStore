@@ -10,9 +10,63 @@ if (isset($_SESSION['order_success'])) {
     unset($_SESSION['order_success']);
 }
 
+// Fetch dynamic categories and products from database
+$categories = [];
+$categories_products = [];
+
+try {
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // 1. Fetch categories
+    $stmt_cats = $pdo->query("SELECT * FROM categories");
+    $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
+
+    // Initialize products array for each category
+    foreach ($categories as $index => $cat) {
+        $catId = $cat['categoryId'] ?? ($cat['id'] ?? ($cat['category_id'] ?? $index));
+        $catKey = 'cat-' . $catId;
+        $categories_products[$catKey] = [];
+    }
+
+    // 2. Fetch products dynamically
+    $stmt_products = $pdo->query("SELECT * FROM products");
+    $all_products = $stmt_products->fetchAll(PDO::FETCH_ASSOC);
+
+    // Group products into their respective categories
+    foreach ($all_products as $prod) {
+        $matched = false;
+
+        $prodCatId = $prod['categoryId'] ?? ($prod['category_id'] ?? null);
+        $prodCatName = $prod['category'] ?? ($prod['categoryName'] ?? '');
+
+        foreach ($categories as $index => $cat) {
+            $catId = $cat['categoryId'] ?? ($cat['id'] ?? ($cat['category_id'] ?? $index));
+            $catKey = 'cat-' . $catId;
+            $catNameDB = $cat['categoryName'] ?? ($cat['categoryname'] ?? '');
+
+            if (
+                (!empty($prodCatId) && $prodCatId == $catId) ||
+                (!empty($prodCatName) && strtolower(trim($prodCatName)) === strtolower(trim($catNameDB)))
+            ) {
+                $categories_products[$catKey][] = $prod;
+                $matched = true;
+                break;
+            }
+        }
+
+        if (!$matched && !empty($categories)) {
+            $firstCatId = $categories[0]['categoryId'] ?? ($categories[0]['id'] ?? ($categories[0]['category_id'] ?? 0));
+            $firstCatKey = 'cat-' . $firstCatId;
+            $categories_products[$firstCatKey][] = $prod;
+        }
+    }
+} catch (PDOException $e) {
+    $order_status_message = "<div style='background:#ffebee; color:#d32f2f; padding:12px; border-radius:12px; text-align:center; margin-bottom:20px; font-weight:600;'>Database Error: " . htmlspecialchars($e->getMessage()) . "</div>";
+}
+
+// Handle Order Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     try {
-        // Append recipient info to card message if mode is Delivery
         $recipient_details = "";
         if (isset($_POST['mode_of_transpo']) && $_POST['mode_of_transpo'] == '1') {
             $rec_name = trim($_POST['recipient_name'] ?? '');
@@ -22,14 +76,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             }
         }
 
-        // Combine recipient info with user's card message / special instructions
         $final_card_message = $recipient_details . trim($_POST['notes'] ?? '');
-
-        // Capture Lat / Long coordinates if provided
         $lat = !empty($_POST['latitude']) ? floatval($_POST['latitude']) : NULL;
         $lng = !empty($_POST['longitude']) ? floatval($_POST['longitude']) : NULL;
 
-        // Prepare database insertion matching updated schema
         $sql = "INSERT INTO orders (
                     user_id, products_id, full_name, phone_number, address, 
                     latitude, longitude, product_name, price, mode_of_transpo, 
@@ -43,29 +93,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         $stmt = $pdo->prepare($sql);
         
         $stmt->execute([
-            ':user_id'         => !empty($_POST['user_id']) ? intval($_POST['user_id']) : NULL,
-            ':products_id'     => !empty($_POST['products_id']) ? intval($_POST['products_id']) : NULL,
-            ':full_name'       => trim($_POST['full_name'] ?? ''),
-            ':phone_number'    => trim($_POST['phone_number'] ?? ''),
-            ':address'         => trim($_POST['address'] ?? ''),
-            ':latitude'        => $lat,
-            ':longitude'       => $lng,
-            ':product_name'    => trim($_POST['product_name'] ?? ''),
-            ':price'           => floatval($_POST['price'] ?? 0),
-            ':mode_of_transpo' => intval($_POST['mode_of_transpo'] ?? 1),
-            ':date_of_pickup'  => !empty($_POST['date_of_pickup']) ? $_POST['date_of_pickup'] : NULL,
-            ':product_image'   => trim($_POST['product_image'] ?? ''),
-            ':card_message'    => $final_card_message
+            ':user_id'          => !empty($_POST['user_id']) ? intval($_POST['user_id']) : NULL,
+            ':products_id'      => !empty($_POST['products_id']) ? intval($_POST['products_id']) : NULL,
+            ':full_name'        => trim($_POST['full_name'] ?? ''),
+            ':phone_number'     => trim($_POST['phone_number'] ?? ''),
+            ':address'          => trim($_POST['address'] ?? ''),
+            ':latitude'         => $lat,
+            ':longitude'        => $lng,
+            ':product_name'     => trim($_POST['product_name'] ?? ''),
+            ':price'            => floatval($_POST['price'] ?? 0),
+            ':mode_of_transpo'  => intval($_POST['mode_of_transpo'] ?? 1),
+            ':date_of_pickup'   => !empty($_POST['date_of_pickup']) ? $_POST['date_of_pickup'] : NULL,
+            ':product_image'    => trim($_POST['product_image'] ?? ''),
+            ':card_message'     => $final_card_message
         ]);
 
-        $_SESSION['order_success'] = "Your LynxPrise order has been placed successfully!";
-        header("Location: U_OrderPage.php");
+        // Get the last inserted order ID to pass to U_ThankYou.php
+        $last_id = $pdo->lastInsertId();
+
+        // Redirect directly to the Thank You page with order_id in URL query
+        header("Location: U_ThankYou.php?order_id=" . $last_id);
         exit;
 
     } catch (PDOException $e) {
         $order_status_message = "<div style='background:#ffebee; color:#d32f2f; padding:12px; border-radius:12px; text-align:center; margin-bottom:20px; font-weight:600;'>Error saving order: " . htmlspecialchars($e->getMessage()) . "</div>";
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -76,8 +130,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap" rel="stylesheet">
-  
-  <!-- Leaflet CSS for Map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
@@ -94,13 +146,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       --radius-lg: 24px;
       --radius-md: 16px;
       --radius-btn: 30px;
-      --success-green: #2e7d32;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg-soft-pink); color: var(--text-dark); line-height: 1.6; }
 
-    /* Navigation Bar */
     .lp-nav { position: sticky; top: 0; z-index: 1000; background: var(--bg-cream); padding: 18px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(59, 34, 25, 0.05); }
     .lp-logo { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--text-dark); text-decoration: none; }
     .lp-logo span { font-family: 'Sacramento', cursive; color: var(--accent-pink); font-size: 32px; margin-left: 2px; }
@@ -112,7 +162,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     .btn-nav { background-color: var(--accent-pink); color: #fff; padding: 10px 24px; border-radius: var(--radius-btn); text-decoration: none; font-weight: 600; font-size: 14px; transition: background-color 0.2s; }
     .btn-nav:hover { background-color: var(--accent-pink-hover); }
 
-    /* Container Wrapper */
     .lp-wrapper { max-width: 900px; margin: 0 auto; padding: 40px 20px 60px; }
     .lp-order-header { text-align: center; margin-bottom: 30px; }
     .lp-order-title { font-family: 'Playfair Display', serif; font-size: 42px; color: var(--text-dark); }
@@ -120,23 +169,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
     /* Category Cards Grid */
     .lp-category-section { margin-bottom: 40px; }
-    .lp-category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-    .lp-cat-card { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: var(--radius-md); padding: 16px; text-align: center; cursor: pointer; transition: transform 0.2s; }
+    .lp-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+    .lp-cat-card { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: var(--radius-md); padding: 16px; text-align: center; cursor: pointer; transition: transform 0.2s; display: flex; flex-direction: column; align-items: center; }
     .lp-cat-card:hover { transform: translateY(-4px); }
     .lp-cat-img { width: 100%; height: 140px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
+    .lp-cat-title { font-size: 18px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
+    .lp-cat-desc { font-size: 13px; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-    /* Modal Popups */
     .lp-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(59, 34, 25, 0.6); backdrop-filter: blur(3px); z-index: 2000; justify-content: center; align-items: center; }
-    .lp-modal-content { background: var(--bg-cream); border-radius: var(--radius-lg); padding: 32px; max-width: 750px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; border: 1px solid var(--gold-border); }
-    .lp-modal-close { position: absolute; top: 16px; right: 20px; font-size: 28px; border: none; background: none; cursor: pointer; }
+    .lp-modal-content { background: var(--bg-cream); border-radius: var(--radius-lg); padding: 32px; max-width: 800px; width: 92%; max-height: 85vh; overflow-y: auto; position: relative; border: 1px solid var(--gold-border); display: flex; flex-direction: column; }
+    .lp-modal-close { position: absolute; top: 16px; right: 20px; font-size: 28px; border: none; background: none; cursor: pointer; color: var(--text-dark); }
     .lp-modal-title { font-family: 'Playfair Display', serif; font-size: 26px; margin-bottom: 20px; border-bottom: 1px solid var(--gold-border); padding-bottom: 10px; }
 
-    .lp-product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
-    .lp-product-card { background: #fff; border: 1px solid var(--gold-border); border-radius: var(--radius-md); padding: 16px; text-align: center; }
-    .lp-product-card img { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; }
-    .btn-add { background-color: var(--accent-pink); color: #fff; border: none; padding: 10px 16px; border-radius: var(--radius-btn); font-weight: 600; font-size: 13px; cursor: pointer; margin-top: 8px; width: 100%; }
+    .lp-product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; margin-bottom: 20px; }
+    .lp-product-card { background: #fff; border: 1px solid var(--gold-border); border-radius: var(--radius-md); padding: 16px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+    .lp-product-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; cursor: pointer; transition: opacity 0.2s; }
+    .lp-product-card img:hover { opacity: 0.85; }
+    
+    .stock-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+    .stock-available { background-color: #e8f5e9; color: #2e7d32; }
+    .stock-out { background-color: #ffebee; color: #c62828; }
 
-    /* Form Layout */
+    .prod-desc { font-size: 12px; color: var(--text-muted); margin: 6px 0 10px; line-height: 1.4; word-break: break-word; }
+    .see-more-btn { color: var(--accent-pink); font-weight: 600; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 12px; padding: 0; }
+
+    .btn-add { background-color: var(--accent-pink); color: #fff; border: none; padding: 10px 16px; border-radius: var(--radius-btn); font-weight: 600; font-size: 13px; cursor: pointer; margin-top: 8px; width: 100%; transition: background-color 0.2s; }
+    .btn-add:hover { background-color: var(--accent-pink-hover); }
+    .btn-add:disabled { background-color: #ccc; cursor: not-allowed; }
+
+    /* Modal Footer & Checkout Bar */
+    .lp-modal-footer { position: sticky; bottom: -32px; background: var(--bg-cream); border-top: 1px solid var(--gold-border); padding: 16px 0 0; margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 10; }
+    .modal-checkout-btn { background-color: var(--text-dark); color: #fff; border: none; padding: 12px 24px; border-radius: var(--radius-btn); font-weight: 700; font-size: 14px; cursor: pointer; transition: background-color 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .modal-checkout-btn:hover { background-color: #24140e; }
+
+    /* Toast Notification inside Modal */
+    .item-added-toast { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--text-dark); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .item-added-toast.show { opacity: 1; }
+
     .lp-order-form { background-color: var(--card-bg); border: 1px solid var(--gold-border); border-radius: var(--radius-lg); padding: 40px; display: flex; flex-direction: column; gap: 28px; box-shadow: 0 8px 30px rgba(59, 34, 25, 0.04); }
     .lp-fieldset { border: none; display: flex; flex-direction: column; gap: 18px; }
     .lp-legend { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: var(--text-dark); border-bottom: 1px solid var(--bg-soft-pink); padding-bottom: 8px; width: 100%; }
@@ -146,7 +215,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     .lp-field label { font-size: 14px; font-weight: 600; color: var(--text-dark); }
     .lp-input, .lp-textarea, .lp-select { width: 100%; padding: 12px 16px; background-color: #fff; border: 1px solid var(--gold-border); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; outline: none; }
 
-    /* Cart Summary List */
     .lp-summary-box { background-color: var(--bg-cream); border: 1px dashed var(--gold-border); padding: 16px; border-radius: var(--radius-md); }
     .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--bg-soft-pink); }
     .cart-item-row:last-child { border-bottom: none; }
@@ -154,31 +222,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
     .btn-submit { background-color: var(--accent-pink); color: #fff; padding: 16px; border: none; border-radius: var(--radius-btn); font-weight: 700; font-size: 16px; cursor: pointer; width: 100%; }
 
-    /* Interactive Map Styles */
-    #delivery-map {
-      width: 100%;
-      height: 280px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--gold-border);
-      z-index: 1;
-    }
+    #image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); z-index: 3000; justify-content: center; align-items: center; cursor: zoom-out; }
+    #image-lightbox img { max-width: 90%; max-height: 90%; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+
+    #delivery-map { width: 100%; height: 280px; border-radius: var(--radius-md); border: 1px solid var(--gold-border); z-index: 1; }
 
     @media (max-width: 640px) {
       .lp-grid-2, .lp-category-grid { grid-template-columns: 1fr; }
       .lp-order-form { padding: 24px 18px; }
+      .lp-modal-footer { flex-direction: column; align-items: stretch; text-align: center; }
+      .modal-checkout-btn { justify-content: center; }
     }
   </style>
 </head>
 <body>
-  <!-- Navigation Bar -->
+
   <nav class="lp-nav">
     <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
     <ul class="lp-nav-links">
       <li><a href="index.php#categories">Categories</a></li>
-      <li><a href="index.php#how-it-works">How it works</a></li>
+      <li><a href="index.php#testimonials">Feedbacks</a></li>
       <li><a href="U_OrderPage.php">Order</a></li>
     </ul>
-    <a href="U_OrderPage.php" class="btn-nav">Order now</a>
+    <a href="index.php#how-it-works" class="btn-nav">How this works</a>
   </nav>
 
   <main class="lp-wrapper">
@@ -189,21 +255,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
     <?= $order_status_message ?>
 
-    <!-- Category Popups Trigger Grid -->
+    <!-- Category Cards Section -->
     <section class="lp-category-section" id="categories">
       <div class="lp-category-grid">
-        <div class="lp-cat-card" onclick="openModal('cat-bouquets')">
-          <img src="Assets/Images/category-flowers.jpg" alt="Bouquets" class="lp-cat-img" />
-          <h3>Flower Bouquets</h3>
-        </div>
-        <div class="lp-cat-card" onclick="openModal('cat-cakes')">
-          <img src="Assets/Images/category-cakes.jpg" alt="Bento Cakes" class="lp-cat-img" />
-          <h3>Celebration Cakes</h3>
-        </div>
-        <div class="lp-cat-card" onclick="openModal('cat-balloons')">
-          <img src="Assets/Images/category-balloons.jpg" alt="Balloons" class="lp-cat-img" />
-          <h3>Balloon Decor</h3>
-        </div>
+        <?php if (!empty($categories)): ?>
+          <?php foreach ($categories as $index => $cat): 
+            $catId = $cat['categoryId'] ?? ($cat['id'] ?? ($cat['category_id'] ?? $index));
+            $catName = htmlspecialchars($cat['categoryName'] ?? ($cat['categoryname'] ?? 'Category'));
+            $catDesc = htmlspecialchars($cat['description'] ?? ($cat['categoryDescription'] ?? ''));
+            $catImgRaw = $cat['categoryImage'] ?? ($cat['categoryimage'] ?? '');
+            $catImg = htmlspecialchars(!empty($catImgRaw) ? $catImgRaw : 'Assets/Images/placeholder.jpg');
+          ?>
+            <div class="lp-cat-card" onclick="openModal('cat-<?= $catId ?>')">
+              <img src="<?= $catImg ?>" alt="<?= $catName ?>" class="lp-cat-img" />
+              <h3 class="lp-cat-title"><?= $catName ?></h3>
+              <?php if ($catDesc !== ''): ?>
+                <p class="lp-cat-desc"><?= $catDesc ?></p>
+              <?php endif; ?>
+            </div>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <p style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">No categories available right now.</p>
+        <?php endif; ?>
       </div>
     </section>
 
@@ -217,71 +290,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       </div>
     </div>
 
-    <!-- Category Modal: Bouquets -->
-    <div id="cat-bouquets" class="lp-modal-overlay">
-      <div class="lp-modal-content">
-        <button class="lp-modal-close" onclick="closeModal('cat-bouquets')">&times;</button>
-        <h2 class="lp-modal-title">Flower Bouquets</h2>
-        <div class="lp-product-grid">
-          <div class="lp-product-card">
-            <img src="Assets/Images/med-fuz.jpg" alt="Med Fuzzy Flower Bouquet" />
-            <h4>Med Fuzzy Flower Bouquet</h4>
-            <p style="color:var(--accent-pink); font-weight:700;">₱250</p>
-            <button class="btn-add" onclick="addItemToOrder(101, 'Med Fuzzy Flower Bouquet', 250, 'Assets/Images/med-fuz.jpg', 'cat-bouquets')">+ Add Item</button>
-          </div>
-          <div class="lp-product-card">
-            <img src="Assets/Images/round.jpg" alt="Round Flower Bouquet" />
-            <h4>.5 Round Flower Bouquet</h4>
-            <p style="color:var(--accent-pink); font-weight:700;">₱400</p>
-            <button class="btn-add" onclick="addItemToOrder(102, '.5 Round Flower Bouquet', 400, 'Assets/Images/round.jpg', 'cat-bouquets')">+ Add Item</button>
-          </div>
-        </div>
-      </div>
+    <!-- Fullscreen Lightbox -->
+    <div id="image-lightbox" onclick="closeLightbox()">
+      <img id="lightbox-img" src="" alt="Full Screen View" />
     </div>
 
-    <!-- Category Modal: Cakes -->
-    <div id="cat-cakes" class="lp-modal-overlay">
-      <div class="lp-modal-content">
-        <button class="lp-modal-close" onclick="closeModal('cat-cakes')">&times;</button>
-        <h2 class="lp-modal-title">Celebration Cakes</h2>
-        <div class="lp-product-grid">
-          <div class="lp-product-card">
-            <img src="Assets/Images/bento.jpg" alt="Bento Cake" />
-            <h4>Custom Bento Cake</h4>
-            <p style="color:var(--accent-pink); font-weight:700;">₱350</p>
-            <button class="btn-add" onclick="addItemToOrder(201, 'Bento Cake', 350, 'Assets/Images/bento.jpg', 'cat-cakes')">+ Add Item</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <?php
+    function renderCategoryProducts($modalId, $title, $products) {
+    ?>
+      <div id="<?= $modalId ?>" class="lp-modal-overlay">
+        <div class="lp-modal-content">
+          <button class="lp-modal-close" onclick="closeModal('<?= $modalId ?>')">&times;</button>
+          <h2 class="lp-modal-title"><?= htmlspecialchars($title) ?></h2>
+          <div class="lp-product-grid">
+            <?php if (empty($products)): ?>
+              <p style="color: var(--text-muted); grid-column: 1 / -1; text-align: center; padding: 20px;">No products available in this category yet.</p>
+            <?php else: ?>
+              <?php foreach ($products as $p): 
+                $id = $p['productId'] ?? ($p['id'] ?? ($p['product_id'] ?? 0));
+                $name = htmlspecialchars($p['productName'] ?? ($p['name'] ?? ($p['product_name'] ?? 'Product')));
+                $price = floatval($p['productPrice'] ?? ($p['price'] ?? 0));
+                $qty = intval($p['productStock'] ?? ($p['quantity'] ?? ($p['stock'] ?? 0)));
+                
+                $imgRaw = $p['productImage'] ?? ($p['image'] ?? ($p['product_image'] ?? ''));
+                $img = htmlspecialchars(!empty($imgRaw) ? $imgRaw : 'Assets/Images/placeholder.jpg');
+                
+                $desc = trim($p['productDescription'] ?? ($p['description'] ?? ''));
+                $isLongDesc = strlen($desc) > 80;
+                $shortDesc = $isLongDesc ? substr($desc, 0, 80) . '...' : $desc;
+              ?>
+                <div class="lp-product-card">
+                  <div id="toast-<?= $id ?>" class="item-added-toast">✓ Added!</div>
+                  <div>
+                    <img src="<?= $img ?>" alt="<?= $name ?>" onclick="viewFullscreenImage('<?= $img ?>')" title="Click to view full image" />
+                    <h4><?= $name ?></h4>
+                    <p style="color:var(--accent-pink); font-weight:700; font-size:16px;">₱<?= number_format($price, 2) ?></p>
 
-    <!-- Category Modal: Balloons -->
-    <div id="cat-balloons" class="lp-modal-overlay">
-      <div class="lp-modal-content">
-        <button class="lp-modal-close" onclick="closeModal('cat-balloons')">&times;</button>
-        <h2 class="lp-modal-title">Balloon Decor</h2>
-        <div class="lp-product-grid">
-          <div class="lp-product-card">
-            <img src="Assets/Images/balloon.jpg" alt="Hot Air Balloon Box" />
-            <h4>Hot Air Balloon Box</h4>
-            <p style="color:var(--accent-pink); font-weight:700;">₱500</p>
-            <button class="btn-add" onclick="addItemToOrder(301, 'Hot Air Balloon Box', 500, 'Assets/Images/balloon.jpg', 'cat-balloons')">+ Add Item</button>
+                    <?php if ($qty > 0): ?>
+                      <span class="stock-badge stock-available">Available: <?= $qty ?></span>
+                    <?php else: ?>
+                      <span class="stock-badge stock-out">Out of Stock</span>
+                    <?php endif; ?>
+
+                    <?php if ($desc !== ''): ?>
+                      <div class="prod-desc">
+                        <span id="desc-short-<?= $id ?>"><?= htmlspecialchars($shortDesc) ?></span>
+                        <?php if ($isLongDesc): ?>
+                          <span id="desc-full-<?= $id ?>" style="display: none;"><?= htmlspecialchars($desc) ?></span>
+                          <button type="button" class="see-more-btn" onclick="toggleDesc(<?= $id ?>)" id="see-btn-<?= $id ?>">see more</button>
+                        <?php endif; ?>
+                      </div>
+                    <?php endif; ?>
+                  </div>
+
+                  <button class="btn-add" 
+                          onclick="addItemToOrder(<?= $id ?>, '<?= addslashes($name) ?>', <?= $price ?>, '<?= $img ?>', <?= $qty ?>)"
+                          <?= ($qty <= 0) ? 'disabled' : '' ?>>
+                    <?= ($qty > 0) ? '+ Add Item' : 'Out of Stock' ?>
+                  </button>
+                </div>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </div>
+
+          <!-- Sticky Modal Footer -->
+          <div class="lp-modal-footer">
+            <span style="font-size: 13px; color: var(--text-muted);">
+              🛒 Selected Items Total: <strong id="modal-summary-count-<?= $modalId ?>" style="color: var(--accent-pink);">0 items</strong>
+            </span>
+            <button type="button" class="modal-checkout-btn" onclick="goToCheckout('<?= $modalId ?>')">
+              Go to Checkout ➔
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    <?php
+    }
+
+    foreach ($categories as $index => $cat) {
+        $catId = $cat['categoryId'] ?? ($cat['id'] ?? ($cat['category_id'] ?? $index));
+        $catKey = 'cat-' . $catId;
+        $catTitle = $cat['categoryName'] ?? ($cat['categoryname'] ?? 'Category');
+        $prods = $categories_products[$catKey] ?? [];
+        renderCategoryProducts($catKey, $catTitle, $prods);
+    }
+    ?>
 
     <!-- Main Order Form -->
     <form class="lp-order-form" id="checkout-section" method="POST" action="U_OrderPage.php">
       
-      <!-- Hidden Table Mapped Fields -->
       <input type="hidden" name="user_id" value="<?= $_SESSION['user_id'] ?? '' ?>" />
       <input type="hidden" name="products_id" id="form_products_id" value="" />
       <input type="hidden" name="product_image" id="form_product_image" value="" />
       <input type="hidden" name="product_name" id="form_product_name" required />
       <input type="hidden" name="price" id="form_price" value="0.00" required />
 
-      <!-- Step 1: Order Items & Calculated Total -->
+      <!-- Step 1: Order Summary -->
       <fieldset class="lp-fieldset">
         <legend class="lp-legend">1. Order Items Summary</legend>
         <div class="lp-summary-box">
@@ -299,13 +403,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       <!-- Step 2: Customer Details -->
       <fieldset class="lp-fieldset">
         <legend class="lp-legend">2. Customer Details</legend>
-        
         <div class="lp-grid-2">
           <div class="lp-field">
             <label for="full_name">Your Full Name</label>
             <input class="lp-input" id="full_name" name="full_name" required placeholder="Juan Dela Cruz" />
           </div>
-
           <div class="lp-field">
             <label for="phone_number">Customer Contact Number</label>
             <input class="lp-input" id="phone_number" name="phone_number" type="tel" required placeholder="09XX XXX XXXX" />
@@ -313,26 +415,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         </div>
       </fieldset>
 
-      <!-- Step 3: Logistics & Options -->
+      <!-- Step 3: Fulfillment & Options -->
       <fieldset class="lp-fieldset">
         <legend class="lp-legend">3. Fulfillment & Options</legend>
-        
         <div class="lp-grid-2">
           <div class="lp-field">
             <label for="mode_of_transpo">Fulfillment Option</label>
             <select class="lp-select" id="mode_of_transpo" name="mode_of_transpo" onchange="toggleFulfillmentMode()" required>
-  <option value="1">Delivery (with minimal delivery fee)</option>
-  <option value="2" selected>Store Pickup</option>
-</select>
+              <option value="1">Delivery (with minimal delivery fee)</option>
+              <option value="2" selected>Store Pickup</option>
+            </select>
           </div>
-
           <div class="lp-field">
             <label for="date_of_pickup" id="date-label">Preferred Delivery Date & Time</label>
             <input class="lp-input" id="date_of_pickup" name="date_of_pickup" type="datetime-local" required />
           </div>
         </div>
 
-        <!-- DYNAMIC CONTAINER 1: Delivery Fields with Interactive Map -->
         <div id="delivery-fields" style="display: flex; flex-direction: column; gap: 16px;">
           <div class="lp-grid-2">
             <div class="lp-field">
@@ -345,7 +444,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             </div>
           </div>
 
-          <!-- Hidden Latitude and Longitude Inputs -->
           <input type="hidden" id="latitude" name="latitude" />
           <input type="hidden" id="longitude" name="longitude" />
 
@@ -358,11 +456,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             <span style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">📍 Search a location or drag the pink pin on the map to mark your exact doorstep.</span>
           </div>
 
-          <!-- Leaflet Interactive Map -->
           <div id="delivery-map"></div>
         </div>
 
-        <!-- DYNAMIC CONTAINER 2: Store Pickup Location -->
         <div id="pickup-info" style="display: none; background: var(--bg-cream); border: 1px dashed var(--gold-border); padding: 18px; border-radius: var(--radius-md);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
             <h4 style="color: var(--text-dark); font-family: 'Playfair Display', serif;">Store Pickup Location</h4>
@@ -392,10 +488,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         </div>
       </fieldset>
 
-      <!-- Step 4: Notes (Custom Card Message / Special Instructions) -->
+      <!-- Step 4: Notes -->
       <fieldset class="lp-fieldset">
         <legend class="lp-legend">4. Additional Information</legend>
-
         <div class="lp-field">
           <label for="notes">Custom card message / special instructions</label>
           <textarea class="lp-textarea" id="notes" name="notes" rows="3" placeholder="Write your card message, dedication, color preferences, ribbon requests, or extra custom instructions..."></textarea>
@@ -406,17 +501,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     </form>
   </main>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
     let orderCart = [];
     let map, marker;
-    let searchTimeout = null;
 
-    // Default center set to Javier, Leyte
     const defaultLat = 10.76498;
     const defaultLng = 124.91874;
+
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
 
     function showCustomAlert(message) {
       document.getElementById('lp-alert-message').textContent = message;
@@ -427,222 +533,195 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       document.getElementById('lp-alert-modal').style.display = 'none';
     }
 
-    function initDeliveryMap() {
-      if (map) return; // Prevent duplicate initialization
+    function viewFullscreenImage(imgSrc) {
+      const lightbox = document.getElementById('image-lightbox');
+      const lightboxImg = document.getElementById('lightbox-img');
+      lightboxImg.src = imgSrc;
+      lightbox.style.display = 'flex';
+    }
 
+    function closeLightbox() {
+      document.getElementById('image-lightbox').style.display = 'none';
+    }
+
+    function toggleDesc(id) {
+      const shortSpan = document.getElementById('desc-short-' + id);
+      const fullSpan = document.getElementById('desc-full-' + id);
+      const btn = document.getElementById('see-btn-' + id);
+
+      if (fullSpan.style.display === 'none') {
+        fullSpan.style.display = 'inline';
+        shortSpan.style.display = 'none';
+        btn.textContent = 'see less';
+      } else {
+        fullSpan.style.display = 'none';
+        shortSpan.style.display = 'inline';
+        btn.textContent = 'see more';
+      }
+    }
+
+    // Add item to cart without closing modal + trigger toast notification
+    function addItemToOrder(id, name, price, img, qty) {
+      orderCart.push({ id, name, price, img });
+      updateCartSummary();
+
+      // Show temporary pop-up badge on product card
+      const toast = document.getElementById('toast-' + id);
+      if (toast) {
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 1500);
+      }
+    }
+
+    // Closes modal and scrolls user straight to the checkout/order summary form
+    function goToCheckout(modalId) {
+      closeModal(modalId);
+      const checkoutSection = document.getElementById('checkout-section');
+      if (checkoutSection) {
+        checkoutSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    function removeItemFromOrder(index) {
+      orderCart.splice(index, 1);
+      updateCartSummary();
+    }
+
+    function updateCartSummary() {
+      const container = document.getElementById('cart-list-container');
+      const totalPriceEl = document.getElementById('summary-total-price');
+
+      // Update all modal footer counters dynamically
+      const countText = orderCart.length === 1 ? '1 item' : `${orderCart.length} items`;
+      document.querySelectorAll('[id^="modal-summary-count-"]').forEach(el => {
+        el.textContent = countText;
+      });
+
+      if (orderCart.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">No catalog items added yet. Click categories above to add items.</p>';
+        totalPriceEl.textContent = '₱0.00';
+        document.getElementById('form_products_id').value = '';
+        document.getElementById('form_product_name').value = '';
+        document.getElementById('form_product_image').value = '';
+        document.getElementById('form_price').value = '0.00';
+        return;
+      }
+
+      let total = 0;
+      let names = [];
+      let ids = [];
+      let imgs = [];
+      let html = '';
+
+      orderCart.forEach((item, index) => {
+        total += parseFloat(item.price);
+        names.push(item.name);
+        ids.push(item.id);
+        if (item.img) imgs.push(item.img);
+
+        html += `
+          <div class="cart-item-row">
+            <span>🌸 ${item.name}</span>
+            <div>
+              <strong>₱${parseFloat(item.price).toFixed(2)}</strong>
+              <button type="button" class="btn-remove" onclick="removeItemFromOrder(${index})">✕ Remove</button>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      totalPriceEl.textContent = '₱' + total.toFixed(2);
+
+      // Map cart to hidden inputs
+      document.getElementById('form_products_id').value = ids.join(',');
+      document.getElementById('form_product_name').value = names.join(', ');
+      document.getElementById('form_product_image').value = imgs[0] || '';
+      document.getElementById('form_price').value = total.toFixed(2);
+    }
+
+    function toggleFulfillmentMode() {
+      const mode = document.getElementById('mode_of_transpo').value;
+      const deliveryFields = document.getElementById('delivery-fields');
+      const pickupInfo = document.getElementById('pickup-info');
+      const dateLabel = document.getElementById('date-label');
+      const addressInput = document.getElementById('address');
+
+      if (mode === '1') { // Delivery
+        deliveryFields.style.display = 'flex';
+        pickupInfo.style.display = 'none';
+        dateLabel.textContent = 'Preferred Delivery Date & Time';
+        addressInput.setAttribute('required', 'required');
+        setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+      } else { // Pickup
+        deliveryFields.style.display = 'none';
+        pickupInfo.style.display = 'block';
+        dateLabel.textContent = 'Preferred Pickup Date & Time';
+        addressInput.removeAttribute('required');
+      }
+    }
+    
+    
+
+    function initMap() {
       map = L.map('delivery-map').setView([defaultLat, defaultLng], 14);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      // Create Draggable Pin
       marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
 
-      // Update lat/lng inputs when marker is dragged
+      updateCoords(defaultLat, defaultLng);
+
       marker.on('dragend', function (e) {
-        const position = marker.getLatLng();
-        updateCoordinates(position.lat, position.lng);
-        reverseGeocode(position.lat, position.lng);
+        const coord = e.target.getLatLng();
+        updateCoords(coord.lat, coord.lng);
       });
 
-      // Move marker on map click
-      map.on('click', function(e) {
+      map.on('click', function (e) {
         marker.setLatLng(e.latlng);
-        updateCoordinates(e.latlng.lat, e.latlng.lng);
-        reverseGeocode(e.latlng.lat, e.latlng.lng);
+        updateCoords(e.latlng.lat, e.latlng.lng);
       });
-
-      // Set initial hidden fields
-      updateCoordinates(defaultLat, defaultLng);
     }
 
-    function updateCoordinates(lat, lng) {
-      document.getElementById('latitude').value = lat.toFixed(8);
-      document.getElementById('longitude').value = lng.toFixed(8);
+    function updateCoords(lat, lng) {
+      document.getElementById('latitude').value = lat;
+      document.getElementById('longitude').value = lng;
     }
 
-    // Geocode typed address via OpenStreetMap Nominatim
     function searchLocation() {
-      const query = document.getElementById('address').value.trim();
-      if (!query) return;
+      const query = document.getElementById('address').value;
+      if (!query) {
+        showCustomAlert("Please enter a location to search.");
+        return;
+      }
 
-      // Add "Javier Leyte" to target local places better
-      const searchQuery = query.toLowerCase().includes('leyte') ? query : query + ', Javier, Leyte, Philippines';
-
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`)
-        .then(res => res.json())
+      const fullQuery = query + ", Javier, Leyte, Philippines";
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}`)
+        .then(response => response.json())
         .then(data => {
           if (data && data.length > 0) {
             const lat = parseFloat(data[0].lat);
             const lon = parseFloat(data[0].lon);
-            
+
             map.setView([lat, lon], 16);
             marker.setLatLng([lat, lon]);
-            updateCoordinates(lat, lon);
+            updateCoords(lat, lon);
           } else {
-            showCustomAlert("Location not found on map. You can manually drag the pink pin to your spot!");
+            showCustomAlert("Location not found. Please try a different landmark or click on the map.");
           }
         })
-        .catch(err => {
-          console.error("Geocoding error:", err);
-          showCustomAlert("Unable to fetch location right now. Please drag the pin on the map directly.");
+        .catch(() => {
+          showCustomAlert("Unable to connect to map services right now.");
         });
     }
 
-    // Reverse geocode to get street name from pin drop
-    function reverseGeocode(lat, lng) {
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.display_name) {
-            document.getElementById('address').value = data.display_name;
-          }
-        })
-        .catch(err => console.error("Reverse geocoding error:", err));
-    }
-
-    // Auto-search after user stops typing for 1 second
-    document.getElementById('address').addEventListener('input', function() {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        searchLocation();
-      }, 1000);
+    document.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      toggleFulfillmentMode();
     });
-
-    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-    function addItemToOrder(id, name, price, img, modalId) {
-      const existing = orderCart.find(item => item.id === id);
-      if (existing) {
-        existing.qty += 1;
-      } else {
-        orderCart.push({ id: id, name: name, price: price, img: img, qty: 1 });
-      }
-
-      renderCart();
-      closeModal(modalId);
-      document.getElementById('checkout-section').scrollIntoView({ behavior: 'smooth' });
-    }
-
-    function removeItemFromCart(id) {
-      orderCart = orderCart.filter(item => item.id !== id);
-      renderCart();
-    }
-
-    function renderCart() {
-      const container = document.getElementById('cart-list-container');
-      const formProductName = document.getElementById('form_product_name');
-      const formPrice = document.getElementById('form_price');
-      const formProductId = document.getElementById('form_products_id');
-      const formProductImg = document.getElementById('form_product_image');
-      const totalPriceSpan = document.getElementById('summary-total-price');
-
-      if (orderCart.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">No catalog items added yet. Click categories above to add items.</p>';
-        formProductName.value = '';
-        formPrice.value = '0.00';
-        formProductId.value = '';
-        formProductImg.value = '';
-        totalPriceSpan.textContent = '₱0.00';
-        return;
-      }
-
-      let html = '';
-      let formattedNames = [];
-      let grandTotal = 0;
-      let primaryIds = [];
-      let primaryImgs = [];
-
-      orderCart.forEach(item => {
-        const itemTotal = item.price * item.qty;
-        grandTotal += itemTotal;
-        formattedNames.push(`${item.qty}x ${item.name}`);
-        primaryIds.push(item.id);
-        primaryImgs.push(item.img);
-
-        html += `
-          <div class="cart-item-row">
-            <div>
-              <strong>${item.qty}x</strong> ${item.name}
-              <button type="button" class="btn-remove" onclick="removeItemFromCart(${item.id})">Remove</button>
-            </div>
-            <div><strong>₱${itemTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></div>
-          </div>
-        `;
-      });
-
-      container.innerHTML = html;
-      
-      formProductName.value = formattedNames.join(', ');
-      formPrice.value = grandTotal.toFixed(2);
-      formProductId.value = primaryIds.join(',');
-      formProductImg.value = primaryImgs[0] || '';
-      totalPriceSpan.textContent = '₱' + grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 });
-    }
-
-    function toggleFulfillmentMode() {
-  const transpoMode = document.getElementById('mode_of_transpo').value;
-  const deliveryFields = document.getElementById('delivery-fields');
-  const pickupInfo = document.getElementById('pickup-info');
-  const addressInput = document.getElementById('address');
-  const dateLabel = document.getElementById('date-label');
-
-  if (transpoMode === '2') { // Store Pickup
-    deliveryFields.style.display = 'none';
-    pickupInfo.style.display = 'block';
-    addressInput.removeAttribute('required');
-    addressInput.value = 'Store Pickup - Brgy. Malitbogay, Javier, Leyte';
-    dateLabel.textContent = 'Preferred Pickup Date & Time';
-  } else { // Delivery
-    deliveryFields.style.display = 'flex';
-    pickupInfo.style.display = 'none';
-    addressInput.setAttribute('required', 'required');
-    if (addressInput.value.startsWith('Store Pickup')) {
-      addressInput.value = '';
-    }
-    dateLabel.textContent = 'Preferred Delivery Date & Time';
-
-    // Initialize or refresh Leaflet map when switching to Delivery
-    setTimeout(() => {
-      initDeliveryMap();
-      if (map) map.invalidateSize();
-    }, 200);
-  }
-}
-
-    // function toggleFulfillmentMode() {
-    //   const transpoMode = document.getElementById('mode_of_transpo').value;
-    //   const deliveryFields = document.getElementById('delivery-fields');
-    //   const pickupInfo = document.getElementById('pickup-info');
-    //   const addressInput = document.getElementById('address');
-    //   const dateLabel = document.getElementById('date-label');
-
-    //   if (transpoMode === '2') { // Store Pickup
-    //     deliveryFields.style.display = 'none';
-    //     pickupInfo.style.display = 'block';
-    //     addressInput.removeAttribute('required');
-    //     addressInput.value = 'Store Pickup - Brgy. Malitbogay, Javier, Leyte';
-    //     dateLabel.textContent = 'Preferred Pickup Date & Time';
-    //   } else { // Delivery
-    //     deliveryFields.style.display = 'flex';
-    //     pickupInfo.style.display = 'none';
-    //     addressInput.setAttribute('required', 'required');
-    //     if (addressInput.value.startsWith('Store Pickup')) {
-    //       addressInput.value = '';
-    //     }
-    //     dateLabel.textContent = 'Preferred Delivery Date & Time';
-
-    //     // Initialize and resize Leaflet map when delivery option is selected
-    //     setTimeout(() => {
-    //       initDeliveryMap();
-    //       if (map) map.invalidateSize();
-    //     }, 200);
-    //   }
-    // }
-
-    document.addEventListener('DOMContentLoaded', toggleFulfillmentMode);
   </script>
+
 </body>
 </html>
