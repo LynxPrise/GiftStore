@@ -83,6 +83,27 @@ $revenue_data = $stmt_revenue->fetchAll(PDO::FETCH_ASSOC);
 $revenue_labels = json_encode(array_column($revenue_data, 'month_name'));
 $revenue_values = json_encode(array_map('floatval', array_column($revenue_data, 'total_revenue')));
 
+// Handle optional date-range sales query (From / To)
+$range_total = '0.00';
+$range_label = '';
+if (isset($_GET['from_date']) && isset($_GET['to_date']) && !empty($_GET['from_date']) && !empty($_GET['to_date'])) {
+    $from_date = $_GET['from_date'];
+    $to_date = $_GET['to_date'];
+    // Ensure valid date format (basic check)
+    $from_ts = strtotime($from_date);
+    $to_ts = strtotime($to_date);
+    if ($from_ts !== false && $to_ts !== false) {
+        // Normalize to Y-m-d
+        $from_sql = date('Y-m-d', $from_ts);
+        $to_sql = date('Y-m-d', $to_ts);
+        $stmt_range = $pdo->prepare("SELECT COALESCE(SUM(price),0) as total FROM orders WHERE DATE(date_of_pickup) BETWEEN :from AND :to AND status != 'cancelled'");
+        $stmt_range->execute([':from' => $from_sql, ':to' => $to_sql]);
+        $row = $stmt_range->fetch(PDO::FETCH_ASSOC);
+        $range_total = number_format((float)($row['total'] ?? 0), 2);
+        $range_label = $from_sql . ' to ' . $to_sql;
+    }
+}
+
 // 2. Order Breakdown by Status
 $sql_status_summary = "
     SELECT 
@@ -111,6 +132,46 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['order_id']) && isset($
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Failed to update order status']);
+    }
+    exit;
+}
+
+// Handle Order Edit (from modal)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_order') {
+    $order_id = $_POST['order_id'] ?? null;
+    if (!$order_id) {
+        echo json_encode(['success' => false, 'message' => 'Missing order ID']);
+        exit;
+    }
+
+    $fields = [
+        'full_name' => $_POST['full_name'] ?? null,
+        'phone_number' => $_POST['phone_number'] ?? null,
+        'date_of_pickup' => $_POST['date_of_pickup'] ?? null,
+        'price' => isset($_POST['price']) ? (float)$_POST['price'] : null,
+        'address' => $_POST['address'] ?? null,
+    ];
+
+    $updateParts = [];
+    $params = [':order_id' => $order_id];
+    foreach ($fields as $k => $v) {
+        if ($v !== null) {
+            $updateParts[] = "$k = :$k";
+            $params[":$k"] = $v;
+        }
+    }
+
+    if (count($updateParts) === 0) {
+        echo json_encode(['success' => false, 'message' => 'No fields to update']);
+        exit;
+    }
+
+    $sql = "UPDATE orders SET " . implode(', ', $updateParts) . " WHERE id = :order_id";
+    $stmt = $pdo->prepare($sql);
+    if ($stmt->execute($params)) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to update order']);
     }
     exit;
 }
@@ -293,6 +354,14 @@ function renderOrderRows($orders_list) {
         .modal-grid hr { width: 100%; border: 0; border-top: 1px solid #eee; margin: 10px 0; }
         .modal-grid textarea { width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--gold-border); border-radius: 8px; margin-top: 5px; font-family: inherit; font-size: 13px; outline: none; }
 
+        /* Toast notifications */
+        #toast-container { position: fixed; right: 20px; top: 20px; z-index: 4000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { min-width: 220px; max-width: 360px; padding: 10px 14px; border-radius: 8px; color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,0.12); font-weight:600; }
+        .toast.success { background: linear-gradient(90deg,#2ecc71,#27ae60); }
+        .toast.error { background: linear-gradient(90deg,#e74c3c,#c0392b); }
+        .toast.info { background: linear-gradient(90deg,#3498db,#2573a6); }
+        .toast .close-toast { float:right; margin-left:8px; background:transparent; border:none; color:rgba(255,255,255,0.9); font-weight:700; cursor:pointer; }
+
         @media (max-width: 880px) {
             .mobile-menu-toggle { display: block; }
             .lp-nav-menu { display: none; width: 100%; flex-direction: column; gap: 16px; padding-top: 16px; border-top: 1px solid var(--gold-border); margin-top: 12px; }
@@ -327,7 +396,16 @@ function renderOrderRows($orders_list) {
         <!-- ANALYTICS CONTAINER -->
         <div class="analytics-outer-container">
             <h2>Business Analytics Overview</h2>
-            
+
+            <form method="get" style="margin:12px 0 18px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <label style="font-weight:600; color:var(--text-muted);">From: <input type="date" name="from_date" value="<?php echo htmlspecialchars($_GET['from_date'] ?? ''); ?>" style="padding:6px; border-radius:6px; border:1px solid #ddd;"></label>
+                <label style="font-weight:600; color:var(--text-muted);">To: <input type="date" name="to_date" value="<?php echo htmlspecialchars($_GET['to_date'] ?? ''); ?>" style="padding:6px; border-radius:6px; border:1px solid #ddd;"></label>
+                <button class="receipt-btn" type="submit">Search Sales</button>
+                <?php if (!empty($range_label)): ?>
+                    <div style="margin-left:12px; font-weight:700; color:var(--text-dark);">Range Total (<?php echo $range_label; ?>): ₱<?php echo $range_total; ?></div>
+                <?php endif; ?>
+            </form>
+
             <div class="metrics-grid">
                 <div class="metric-card">
                     <h4>Total System Orders</h4>
@@ -411,13 +489,37 @@ function renderOrderRows($orders_list) {
             <span class="close" onclick="closeModal()">&times;</span>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-right: 30px;">
                 <h2 style="margin: 0;">Order Details</h2>
-                <button class="receipt-btn" id="download-receipt-btn">🧾 Download Receipt</button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="details-btn" id="edit-order-btn" type="button">Edit</button>
+                    <button class="receipt-btn" id="download-receipt-btn">🧾 Download Receipt</button>
+                </div>
             </div>
             <div id="order-details"></div>
         </div>
     </div>
 
+    <!-- Toast container for in-page notifications -->
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
     <script>
+        // Simple toast notification helper
+        function showToast(message, type = 'info', timeout = 4000) {
+            try {
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+                const toast = document.createElement('div');
+                toast.className = 'toast ' + (type || 'info');
+                toast.innerHTML = `<span>${message}</span><button class="close-toast" aria-label="Close">×</button>`;
+                container.appendChild(toast);
+
+                const btn = toast.querySelector('.close-toast');
+                btn.addEventListener('click', () => { toast.remove(); });
+
+                if (timeout > 0) {
+                    setTimeout(() => { if (toast.parentNode) toast.remove(); }, timeout);
+                }
+            } catch (e) { console.error('Toast error', e); }
+        }
         const STORE_LAT = 10.7936; 
         const STORE_LNG = 124.9378; 
         const STORE_ADDRESS = "Brgy. Malitbogay, Javier, Leyte";
@@ -474,7 +576,7 @@ function renderOrderRows($orders_list) {
             fetch("M_GetOrderDetails.php?id=" + orderId)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
+                        if (data.success) {
                         const o = data.order;
                         currentActiveOrder = o; 
                         
@@ -520,6 +622,11 @@ function renderOrderRows($orders_list) {
                         document.getElementById('download-receipt-btn').onclick = function() {
                             downloadReceipt(o, isDelivery, recipientName, recipientContact, displayAddress, cleanCardMessage);
                         };
+                        // Wire Edit button
+                        const editBtn = document.getElementById('edit-order-btn');
+                        if (editBtn) {
+                            editBtn.onclick = function() { enableEdit(orderId); };
+                        }
 
                         orderDetails.innerHTML = `
                             <div class="modal-grid">
@@ -561,7 +668,7 @@ function renderOrderRows($orders_list) {
                                 ` : ''}
 
                                 <div class="full-width" style="margin-top:10px;">
-                                    <label for="notes"><strong>Admin Notes:</strong></label>
+                                    <label for="notes"><strong>Note:</strong></label>
                                     <textarea id="notes">${cleanNotes}</textarea>
                                     <button type="button" class="details-btn" style="margin-top:8px;" onclick="updateNotes(${orderId})">Save Notes</button>
                                     <button type="button" class="btn-delete" onclick="deleteOrder(event, ${orderId})">Delete Order</button>
@@ -570,12 +677,12 @@ function renderOrderRows($orders_list) {
                         `;
                         modal.style.display = "block";
                     } else {
-                        alert("Error fetching order details.");
+                        showToast("Error fetching order details.", 'error');
                     }
                 })
                 .catch(err => {
                     console.error("Error:", err);
-                    alert("Unable to fetch details.");
+                    showToast("Unable to fetch details.", 'error');
                 });
         }
 
@@ -587,7 +694,7 @@ function renderOrderRows($orders_list) {
             const lng = o.longitude || o.lng || o.long || null;
 
             if (!window.jspdf || !window.jspdf.jsPDF) {
-                alert('PDF library is still loading. Please try again in a moment.');
+                showToast('PDF library is still loading. Please try again in a moment.', 'info');
                 return;
             }
 
@@ -743,18 +850,18 @@ function renderOrderRows($orders_list) {
                 }
             })
             .then(({ ok, data }) => {
-                if (data && data.success) {
-                    closeModal();
-                    alert("Order deleted successfully!");
-                    location.reload();
-                } else {
-                    alert((data && data.message) || "Failed to delete order.");
-                }
+                    if (data && data.success) {
+                        closeModal();
+                        showToast("Order deleted successfully!", 'success');
+                        location.reload();
+                    } else {
+                        showToast((data && data.message) || "Failed to delete order.", 'error');
+                    }
             })
-            .catch(err => {
-                console.error("Delete error:", err);
-                alert("There was a problem deleting this order.");
-            });
+                .catch(err => {
+                    console.error("Delete error:", err);
+                    showToast("There was a problem deleting this order.", 'error');
+                });
         }
 
         function closeModal() {
@@ -769,8 +876,8 @@ function renderOrderRows($orders_list) {
                 body: "order_id=" + orderId + "&status=" + status
             })
             .then(response => response.json())
-            .then(data => {
-                if (!data.success) alert("Failed to update order status.");
+                .then(data => {
+                    if (!data.success) showToast("Failed to update order status.", 'error');
             });
         }
 
@@ -783,9 +890,61 @@ function renderOrderRows($orders_list) {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) alert("Notes updated successfully!");
-                else alert("Failed to update notes.");
+                if (data.success) showToast("Notes updated successfully!", 'success');
+                else showToast("Failed to update notes.", 'error');
             });
+        }
+
+        function enableEdit(orderId) {
+            if (!currentActiveOrder) return;
+            const o = currentActiveOrder;
+            const orderDetails = document.getElementById('order-details');
+            orderDetails.innerHTML = `
+                <div class="modal-grid">
+                    <p class="full-width"><strong>Editing Order #${o.id}</strong></p>
+                    <p class="full-width"><label><strong>Customer Name:</strong><br><input id="edit_full_name" value="${(o.full_name||'').replace(/"/g,'&quot;')}" style="width:100%; padding:6px; border-radius:6px; border:1px solid #ddd;"></label></p>
+                    <p><label><strong>Phone:</strong><br><input id="edit_phone" value="${(o.phone_number||'').replace(/"/g,'&quot;')}" style="padding:6px; border-radius:6px; border:1px solid #ddd;"></label></p>
+                    <p><label><strong>Date:</strong><br><input id="edit_date" type="date" value="${(o.date_of_pickup? o.date_of_pickup.split(' ')[0] : '')}" style="padding:6px; border-radius:6px; border:1px solid #ddd;"></label></p>
+                    <p><label><strong>Price:</strong><br><input id="edit_price" type="number" step="0.01" value="${parseFloat(o.price||0).toFixed(2)}" style="padding:6px; border-radius:6px; border:1px solid #ddd;"></label></p>
+                    <p class="full-width"><label><strong>Address:</strong><br><input id="edit_address" value="${(o.address||o.delivery_address||'').replace(/"/g,'&quot;')}" style="width:100%; padding:6px; border-radius:6px; border:1px solid #ddd;"></label></p>
+                    <div class="full-width" style="margin-top:10px;">
+                        <button class="details-btn" onclick="saveEdit(${orderId})">Save Changes</button>
+                        <button class="btn-delete" onclick="cancelEdit(${orderId})">Cancel</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function saveEdit(orderId) {
+            const full_name = document.getElementById('edit_full_name').value;
+            const phone_number = document.getElementById('edit_phone').value;
+            const date_of_pickup = document.getElementById('edit_date').value;
+            const price = document.getElementById('edit_price').value;
+            const address = document.getElementById('edit_address').value;
+
+            const body = `action=edit_order&order_id=${orderId}&full_name=${encodeURIComponent(full_name)}&phone_number=${encodeURIComponent(phone_number)}&date_of_pickup=${encodeURIComponent(date_of_pickup)}&price=${encodeURIComponent(price)}&address=${encodeURIComponent(address)}`;
+
+            fetch('M_Dashboard.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Order updated successfully.', 'success');
+                    // Refresh details from server to reflect changes
+                    openModal(orderId);
+                } else {
+                    showToast(data.message || 'Failed to update order.', 'error');
+                }
+            })
+            .catch(err => { console.error(err); showToast('Error updating order.', 'error'); });
+        }
+
+        function cancelEdit(orderId) {
+            // Re-fetch original details
+            openModal(orderId);
         }
 
         window.onclick = function(e) {
