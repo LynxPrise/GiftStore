@@ -47,6 +47,7 @@ try {
     )");
 } catch (Exception $e) {}
 
+
 // ==========================================
 // 2. HANDLE ACTIONS
 // ==========================================
@@ -72,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type'])) {
                 $blocked_loc_count = count($disabled_locations);
                 $total_loc_count = count($allLocs);
 
-                // If all stalls are disabled for this date, block pickup entirely
+                // FIX: Only block pickup entirely if ALL active stalls are disabled
                 $block_pickup = ($blocked_loc_count >= $total_loc_count && $total_loc_count > 0);
 
                 // 1. Record Blocked Services in `blocked_dates`

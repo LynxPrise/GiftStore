@@ -11,11 +11,12 @@ if (isset($_SESSION['order_success'])) {
     unset($_SESSION['order_success']);
 }
 
-// Fetch dynamic categories and products from database
+// Fetch dynamic categories, products, blocked dates, and locations from database
 $categories = [];
 $categories_products = [];
-
-$min_datetime = date('Y-m-d\TH:i');
+$blocked_dates = [];
+$active_locations = [];
+$date_location_overrides = [];
 
 try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -63,9 +64,35 @@ try {
             $categories_products[$firstCatKey][] = $prod;
         }
     }
+
+    // 3. Fetch blocked dates directly from `blocked_dates` table
+    $stmt_blocked = $pdo->query("SELECT blocked_date, service_type, reason FROM blocked_dates");
+    if ($stmt_blocked) {
+        $blocked_dates = $stmt_blocked->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // 4. Fetch active store locations dynamically
+    $stmt_locations = $pdo->query("SELECT id, location_name, address, latitude, longitude FROM store_locations WHERE is_active = 1");
+    if ($stmt_locations) {
+        $active_locations = $stmt_locations->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // 5. Fetch date location availability overrides
+    $stmt_overrides = $pdo->query("SELECT available_date, location_id, is_available FROM date_location_availability");
+    if ($stmt_overrides) {
+        while ($row = $stmt_overrides->fetch(PDO::FETCH_ASSOC)) {
+            $date_location_overrides[$row['available_date']][$row['location_id']] = (int)$row['is_available'];
+        }
+    }
+
 } catch (PDOException $e) {
-    $order_status_message = "<div style='background:#ffebee; color:#d32f2f; padding:12px; border-radius:12px; text-align:center; margin-bottom:20px; font-weight:600;'>Database Error: " . htmlspecialchars($e->getMessage()) . "</div>";
+    // Handle or log query exceptions if needed
 }
+
+// Convert dataset variables for JS evaluation
+$js_blocked_dates = json_encode($blocked_dates);
+$js_active_locations = json_encode($active_locations);
+$js_location_overrides = json_encode($date_location_overrides);
 
 // Handle Order Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
@@ -77,11 +104,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             if ($rec_name || $rec_phone) {
                 $recipient_details = "[Recipient: {$rec_name} | Contact: {$rec_phone}]\n";
             }
+        } else {
+            $pickup_branch = trim($_POST['pickup_branch'] ?? 'Main Branch - Malitbogay');
+            $recipient_details = "[Pickup Branch: {$pickup_branch}]\n";
         }
 
         $final_card_message = $recipient_details . trim($_POST['notes'] ?? '');
         $lat = !empty($_POST['latitude']) ? floatval($_POST['latitude']) : NULL;
         $lng = !empty($_POST['longitude']) ? floatval($_POST['longitude']) : NULL;
+
+        // Combine Date + Time input into datetime format
+        $pickup_date_formatted = NULL;
+        if (!empty($_POST['selected_date_val'])) {
+            $time_val = !empty($_POST['selected_time_val']) ? $_POST['selected_time_val'] : '10:00';
+            $pickup_date_formatted = $_POST['selected_date_val'] . ' ' . $time_val . ':00';
+        }
 
         $sql = "INSERT INTO orders (
                     user_id, products_id, full_name, phone_number, address, 
@@ -106,15 +143,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             ':product_name'     => trim($_POST['product_name'] ?? ''),
             ':price'            => floatval($_POST['price'] ?? 0),
             ':mode_of_transpo'  => intval($_POST['mode_of_transpo'] ?? 1),
-            ':date_of_pickup'   => !empty($_POST['date_of_pickup']) ? $_POST['date_of_pickup'] : NULL,
+            ':date_of_pickup'   => $pickup_date_formatted,
             ':product_image'    => trim($_POST['product_image'] ?? ''),
             ':card_message'     => $final_card_message
         ]);
 
-        // Get the last inserted order ID to pass to U_ThankYou.php
         $last_id = $pdo->lastInsertId();
 
-        // Redirect directly to the Thank You page with order_id in URL query
         header("Location: U_ThankYou.php?order_id=" . $last_id);
         exit;
 
@@ -122,7 +157,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         $order_status_message = "<div style='background:#ffebee; color:#d32f2f; padding:12px; border-radius:12px; text-align:center; margin-bottom:20px; font-weight:600;'>Error saving order: " . htmlspecialchars($e->getMessage()) . "</div>";
     }
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -170,7 +204,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     .lp-order-title { font-family: 'Playfair Display', serif; font-size: 42px; color: var(--text-dark); }
     .lp-order-subtitle { font-size: 16px; color: var(--text-muted); margin-top: 8px; }
 
-    /* Category Cards Grid */
     .lp-category-section { margin-bottom: 40px; }
     .lp-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
     .lp-cat-card { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: var(--radius-md); padding: 16px; text-align: center; cursor: pointer; transition: transform 0.2s; display: flex; flex-direction: column; align-items: center; }
@@ -200,12 +233,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     .btn-add:hover { background-color: var(--accent-pink-hover); }
     .btn-add:disabled { background-color: #ccc; cursor: not-allowed; }
 
-    /* Modal Footer & Checkout Bar */
     .lp-modal-footer { position: sticky; bottom: -32px; background: var(--bg-cream); border-top: 1px solid var(--gold-border); padding: 16px 0 0; margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 10; }
     .modal-checkout-btn { background-color: var(--text-dark); color: #fff; border: none; padding: 12px 24px; border-radius: var(--radius-btn); font-weight: 700; font-size: 14px; cursor: pointer; transition: background-color 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
     .modal-checkout-btn:hover { background-color: #24140e; }
 
-    /* Toast Notification inside Modal */
     .item-added-toast { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--text-dark); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .item-added-toast.show { opacity: 1; }
 
@@ -229,38 +260,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     #image-lightbox img { max-width: 90%; max-height: 90%; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
 
     #delivery-map { width: 100%; height: 280px; border-radius: var(--radius-md); border: 1px solid var(--gold-border); z-index: 1; }
+    #pickup-map { width: 100%; height: 220px; border-radius: var(--radius-md); border: 1px solid var(--gold-border); z-index: 1; }
 
-    
+    .date-picker-trigger { display: flex; align-items: center; justify-content: space-between; cursor: pointer; background: #fff; }
+
+    .pink-calendar-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(59, 34, 25, 0.5); backdrop-filter: blur(2px); z-index: 2500; justify-content: center; align-items: center; }
+    .pink-calendar-card { background: #fff; border-radius: var(--radius-lg); padding: 24px; width: 90%; max-width: 440px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--gold-border); }
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .cal-header-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--text-dark); }
+    .cal-nav-btn { background: #fdf3f0; border: 1px solid var(--gold-border); border-radius: 12px; padding: 6px 14px; font-size: 13px; font-weight: 700; color: var(--text-dark); cursor: pointer; }
+    .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; }
+    .cal-days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    .cal-day-cell { background: #faf6f5; border-radius: 14px; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--text-dark); cursor: pointer; position: relative; transition: all 0.2s; }
+    .cal-day-cell:hover:not(.disabled) { background: var(--bg-soft-pink); border: 1px solid var(--accent-pink); }
+    .cal-day-cell.selected { background: var(--accent-pink) !important; color: #fff !important; }
+    .cal-day-cell.selected .cal-tag { color: #fff !important; }
+    .cal-day-cell.disabled { background: #f0f0f0; color: #bbb; cursor: not-allowed; opacity: 0.6; }
+    .cal-tag { font-size: 8px; font-weight: 800; padding: 2px 4px; border-radius: 6px; margin-top: 2px; text-transform: uppercase; line-height: 1; }
+    .tag-nodel { background: #ffe0b2; color: #e65100; }
+    .tag-nopick { background: #e0f7fa; color: #006064; }
+    .tag-closed { background: #ffebee; color: #c62828; }
 
     @media (max-width: 640px) {
-    /* Hide navigation links on mobile */
-    .lp-nav-links {
-      display: none;
+      .lp-nav-links { display: none; }
+      .lp-nav { padding: 12px 4%; }
+      .lp-grid-2, .lp-category-grid { grid-template-columns: 1fr; }
+      .lp-order-form { padding: 24px 18px; }
+      .lp-modal-footer { flex-direction: column; align-items: stretch; text-align: center; }
+      .modal-checkout-btn { justify-content: center; }
     }
-
-    /* Adjust header padding to keep logo & button nicely spaced */
-    .lp-nav {
-      padding: 12px 4%;
-    }
-
-    .lp-grid-2, .lp-category-grid { 
-      grid-template-columns: 1fr; 
-    }
-    
-    .lp-order-form { 
-      padding: 24px 18px; 
-    }
-    
-    .lp-modal-footer { 
-      flex-direction: column; 
-      align-items: stretch; 
-      text-align: center; 
-    }
-    
-    .modal-checkout-btn { 
-      justify-content: center; 
-    }
-  }
   </style>
 </head>
 <body>
@@ -323,6 +351,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       <img id="lightbox-img" src="" alt="Full Screen View" />
     </div>
 
+    <!-- Custom Calendar Modal -->
+    <div id="pink-calendar-modal" class="pink-calendar-modal">
+      <div class="pink-calendar-card">
+        <div class="cal-header">
+          <button type="button" class="cal-nav-btn" onclick="navigateCalendarMonth(-1)">&lt;</button>
+          <span class="cal-header-title" id="cal-month-year">Month Year</span>
+          <button type="button" class="cal-nav-btn" onclick="navigateCalendarMonth(1)">&gt;</button>
+        </div>
+        <div class="cal-weekdays">
+          <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+        </div>
+        <div class="cal-days-grid" id="cal-days-container"></div>
+        <div style="margin-top: 18px; text-align: right;">
+          <button type="button" onclick="closePinkCalendar()" style="background: none; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer; font-size: 13px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <?php
     function renderCategoryProducts($modalId, $title, $products) {
     ?>
@@ -381,7 +427,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             <?php endif; ?>
           </div>
 
-          <!-- Sticky Modal Footer -->
           <div class="lp-modal-footer">
             <span style="font-size: 13px; color: var(--text-muted);">
               🛒 Selected Items Total: <strong id="modal-summary-count-<?= $modalId ?>" style="color: var(--accent-pink);">0 items</strong>
@@ -454,16 +499,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
               <option value="2" selected>Store Pickup</option>
             </select>
           </div>
+          
+          <!-- Custom Calendar Picker Fields -->
           <div class="lp-field">
-            <label for="date_of_pickup" id="date-label">Preferred Delivery Date & Time</label>
-            <input 
-              class="lp-input" 
-              id="date_of_pickup" 
-              name="date_of_pickup" 
-              type="datetime-local" 
-              min="<?= date('Y-m-d\TH:i') ?>" 
-              required 
-            />
+            <label id="date-label">Preferred Pickup Date & Time</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="hidden" name="selected_date_val" id="selected_date_val" required />
+              
+              <div class="lp-input date-picker-trigger" id="custom-date-display" onclick="openPinkCalendar()" style="flex: 2;">
+                <span id="date-display-text" style="color: #999;">Select Date...</span>
+                <span>📅</span>
+              </div>
+
+              <select class="lp-select" name="selected_time_val" id="selected_time_val" style="flex: 1;" required>
+                <option value="08:00">08:00 AM</option>
+                <option value="09:00">09:00 AM</option>
+                <option value="10:00" selected>10:00 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="12:00">12:00 PM</option>
+                <option value="13:00">01:00 PM</option>
+                <option value="14:00">02:00 PM</option>
+                <option value="15:00">03:00 PM</option>
+                <option value="16:00">04:00 PM</option>
+                <option value="17:00">05:00 PM</option>
+                <option value="18:00">06:00 PM</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -485,215 +546,183 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
           <div class="lp-field">
             <label for="address">Delivery Address Search & Pin Location</label>
             <div style="display: flex; gap: 8px;">
-              <input class="lp-input" id="address" name="address" required placeholder="Type Barangay / Street / Landmark (e.g. Malitbogay)" />
+              <input class="lp-input" id="address" name="address" placeholder="Type Barangay / Street / Landmark" />
               <button type="button" onclick="searchLocation()" style="background: var(--accent-pink); color: #fff; border: none; padding: 0 16px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; white-space: nowrap;">Find Location</button>
             </div>
             <span style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">📍 Search a location or drag the pink pin on the map to mark your exact doorstep.</span>
           </div>
 
           <div id="delivery-map"></div>
+            <div style="margin-top:8px; display:flex; gap:10px; align-items:center;">
+              <div id="delivery-coords" style="font-size:13px; color:var(--text-muted);">Lat: - , Lng: -</div>
+            </div>
         </div>
 
         <div id="pickup-info" style="display: none; background: var(--bg-cream); border: 1px dashed var(--gold-border); padding: 18px; border-radius: var(--radius-md);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
-            <h4 style="color: var(--text-dark); font-family: 'Playfair Display', serif;">Store Pickup Location</h4>
-            <a href="https://www.google.com/maps/search/?api=1&query=10.76498,124.91874" 
-               target="_blank" 
-               rel="noopener noreferrer" 
-               style="background-color: var(--accent-pink); color: #fff; padding: 6px 14px; border-radius: var(--radius-btn); text-decoration: none; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
-              📍 Open in Maps
-            </a>
+          <div class="lp-field" style="margin-bottom: 14px;">
+            <label for="pickup_branch" style="font-weight: 700; font-size: 14px; color: var(--text-dark);">Select Pickup Stall / Branch Location:</label>
+            <select class="lp-select" id="pickup_branch" name="pickup_branch">
+              <option value="">-- Select Date First --</option>
+            </select>
+            <small id="location_note" style="color: var(--accent-pink); font-size: 12px; font-weight: 600; display: none; margin-top: 6px;"></small>
           </div>
-
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">
-            📍 <strong>LynxPrise Shop:</strong> Brgy. Malitbogay, Javier, Leyte
-          </p>
-
-          <div style="width: 100%; height: 220px; border-radius: 12px; overflow: hidden; border: 1px solid var(--gold-border);">
-            <iframe 
-              width="100%" 
-              height="100%" 
-              frameborder="0" 
-              scrolling="no" 
-              marginheight="0" 
-              marginwidth="0" 
-              src="https://maps.google.com/maps?q=10.76498,124.91874&z=17&output=embed">
-            </iframe>
+          <div style="margin-top:12px;">
+            <div id="pickup-map" style="width:100%; height:220px; border-radius:var(--radius-md); border:1px solid var(--gold-border);"></div>
+            <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
+              <div id="pickup-coords" style="font-size:13px; color:var(--text-muted);">Lat: - , Lng: -</div>
+              <a id="open-pickup-google" href="#" target="_blank" rel="noopener noreferrer" style="background:var(--accent-pink); color:#fff; padding:8px 12px; border-radius:10px; text-decoration:none; font-weight:700;">Open in Google Maps</a>
+            </div>
           </div>
         </div>
-      </fieldset>
 
-      <!-- Step 4: Notes -->
-      <fieldset class="lp-fieldset">
-        <legend class="lp-legend">4. Additional Information</legend>
         <div class="lp-field">
-          <label for="notes">Custom card message / special instructions</label>
-          <textarea class="lp-textarea" id="notes" name="notes" rows="3" placeholder="Write your card message, dedication, color preferences, ribbon requests, or extra custom instructions..."></textarea>
+          <label for="notes">Greeting Card Message / Special Instructions</label>
+          <textarea class="lp-textarea" id="notes" name="notes" rows="3" placeholder="Write any card message or specific request..."></textarea>
         </div>
       </fieldset>
 
-      <button type="submit" name="place_order" id="place-order-btn" class="btn-submit">Place My Order</button>
+      <button type="submit" name="place_order" class="btn-submit">Place Your Order 🌸</button>
     </form>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
   <script>
-    let orderCart = [];
+
+    
+    // Data structures passed from PHP
+    const blockedDatesData = <?= $js_blocked_dates ?>;
+    const activeLocations = <?= $js_active_locations ?>;
+    const dateLocationOverrides = <?= $js_location_overrides ?>;
+
+    let cart = [];
     let map, marker;
+    let calCurrentDate = new Date();
 
-    const defaultLat = 10.76498;
-    const defaultLng = 124.91874;
-
-    function openModal(modalId) {
-      const modal = document.getElementById(modalId);
-      if (modal) {
-        modal.style.display = 'flex';
-      }
-    }
-
-    function closeModal(modalId) {
-      const modal = document.getElementById(modalId);
-      if (modal) {
-        modal.style.display = 'none';
-      }
-    }
-
-   
-  // AUTO-OPEN MODAL ON PAGE LOAD (Fix for landing page redirect)
-  document.addEventListener('DOMContentLoaded', () => {
-    // 1. Get URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const categoryParam = urlParams.get('category') || urlParams.get('cat') || urlParams.get('id');
-
-    if (categoryParam) {
-      // Clean up parameter in case it includes 'cat-' prefix or just raw ID
-      const formattedModalId = categoryParam.startsWith('cat-') ? categoryParam : 'cat-' + categoryParam;
-      
-      // Attempt to open the corresponding modal
-      openModal(formattedModalId);
-    }
-
-    // Initialize pickup/delivery view defaults
-    toggleFulfillmentMode();
-  });
-
-    function showCustomAlert(message) {
-      document.getElementById('lp-alert-message').textContent = message;
+    // Custom Alert logic
+    function customAlert(msg) {
+      document.getElementById('lp-alert-message').innerText = msg;
       document.getElementById('lp-alert-modal').style.display = 'flex';
     }
-
     function closeCustomAlert() {
       document.getElementById('lp-alert-modal').style.display = 'none';
     }
 
-    function viewFullscreenImage(imgSrc) {
-      const lightbox = document.getElementById('image-lightbox');
-      const lightboxImg = document.getElementById('lightbox-img');
-      lightboxImg.src = imgSrc;
-      lightbox.style.display = 'flex';
-    }
+    // Modal logic
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    function closeLightbox() {
-      document.getElementById('image-lightbox').style.display = 'none';
+    // Lightbox logic
+    function viewFullscreenImage(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('image-lightbox').style.display = 'flex';
     }
+    function closeLightbox() { document.getElementById('image-lightbox').style.display = 'none'; }
 
+    // Description expansion
     function toggleDesc(id) {
-      const shortSpan = document.getElementById('desc-short-' + id);
-      const fullSpan = document.getElementById('desc-full-' + id);
+      const shortDesc = document.getElementById('desc-short-' + id);
+      const fullDesc = document.getElementById('desc-full-' + id);
       const btn = document.getElementById('see-btn-' + id);
 
-      if (fullSpan.style.display === 'none') {
-        fullSpan.style.display = 'inline';
-        shortSpan.style.display = 'none';
-        btn.textContent = 'see less';
+      if (fullDesc.style.display === 'none') {
+        fullDesc.style.display = 'inline';
+        shortDesc.style.display = 'none';
+        btn.innerText = 'see less';
       } else {
-        fullSpan.style.display = 'none';
-        shortSpan.style.display = 'inline';
-        btn.textContent = 'see more';
+        fullDesc.style.display = 'none';
+        shortDesc.style.display = 'inline';
+        btn.innerText = 'see more';
       }
     }
 
-    // Add item to cart without closing modal + trigger toast notification
-    function addItemToOrder(id, name, price, img, qty) {
-      orderCart.push({ id, name, price, img });
-      updateCartSummary();
+    // Dynamic Cart Management
+    function addItemToOrder(id, name, price, image, maxStock) {
+      let item = cart.find(i => i.id === id);
+      if (item) {
+        if (item.qty < maxStock) {
+          item.qty++;
+        } else {
+          customAlert(`Sorry, you have reached the maximum available stock (${maxStock}) for this item.`);
+          return;
+        }
+      } else {
+        cart.push({ id, name, price, image, qty: 1, maxStock });
+      }
 
-      // Show temporary pop-up badge on product card
       const toast = document.getElementById('toast-' + id);
       if (toast) {
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 1500);
       }
+
+      updateCartUI();
     }
 
-    // Closes modal and scrolls user straight to the checkout/order summary form
-    function goToCheckout(modalId) {
-      closeModal(modalId);
-      const checkoutSection = document.getElementById('checkout-section');
-      if (checkoutSection) {
-        checkoutSection.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-
-    function removeItemFromOrder(index) {
-      orderCart.splice(index, 1);
-      updateCartSummary();
-    }
-
-    function updateCartSummary() {
+    function updateCartUI() {
       const container = document.getElementById('cart-list-container');
-      const totalPriceEl = document.getElementById('summary-total-price');
+      let total = 0;
+      let count = 0;
 
-      // Update all modal footer counters dynamically
-      const countText = orderCart.length === 1 ? '1 item' : `${orderCart.length} items`;
-      document.querySelectorAll('[id^="modal-summary-count-"]').forEach(el => {
-        el.textContent = countText;
-      });
-
-      if (orderCart.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">No catalog items added yet. Click categories above to add items.</p>';
-        totalPriceEl.textContent = '₱0.00';
+      if (cart.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-muted); font-size:14px;">No catalog items added yet. Click categories above to add items.</p>`;
         document.getElementById('form_products_id').value = '';
         document.getElementById('form_product_name').value = '';
         document.getElementById('form_product_image').value = '';
         document.getElementById('form_price').value = '0.00';
-        return;
+      } else {
+        let html = '';
+        let names = [];
+        let ids = [];
+        let imgs = [];
+
+        cart.forEach(item => {
+          let itemSubtotal = item.price * item.qty;
+          total += itemSubtotal;
+          count += item.qty;
+
+          names.push(`${item.name} (x${item.qty})`);
+          ids.push(item.id);
+          imgs.push(item.image);
+
+          html += `
+            <div class="cart-item-row">
+              <div>
+                <strong>${item.name}</strong> 
+                <span style="font-size:12px; color:var(--text-muted);">₱${item.price.toFixed(2)} x ${item.qty}</span>
+              </div>
+              <div>
+                <span style="font-weight:700;">₱${itemSubtotal.toFixed(2)}</span>
+                <button type="button" class="btn-remove" onclick="removeCartItem(${item.id})">✕</button>
+              </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+        document.getElementById('form_products_id').value = ids.join(',');
+        document.getElementById('form_product_name').value = names.join(', ');
+        document.getElementById('form_product_image').value = imgs[0] || '';
+        document.getElementById('form_price').value = total.toFixed(2);
       }
 
-      let total = 0;
-      let names = [];
-      let ids = [];
-      let imgs = [];
-      let html = '';
+      document.getElementById('summary-total-price').innerText = '₱' + total.toFixed(2);
 
-      orderCart.forEach((item, index) => {
-        total += parseFloat(item.price);
-        names.push(item.name);
-        ids.push(item.id);
-        if (item.img) imgs.push(item.img);
-
-        html += `
-          <div class="cart-item-row">
-            <span>🌸 ${item.name}</span>
-            <div>
-              <strong>₱${parseFloat(item.price).toFixed(2)}</strong>
-              <button type="button" class="btn-remove" onclick="removeItemFromOrder(${index})">✕ Remove</button>
-            </div>
-          </div>
-        `;
+      // Update counters on all open modals
+      document.querySelectorAll('[id^="modal-summary-count-"]').forEach(el => {
+        el.innerText = `${count} item(s)`;
       });
-
-      container.innerHTML = html;
-      totalPriceEl.textContent = '₱' + total.toFixed(2);
-
-      // Map cart to hidden inputs
-      document.getElementById('form_products_id').value = ids.join(',');
-      document.getElementById('form_product_name').value = names.join(', ');
-      document.getElementById('form_product_image').value = imgs[0] || '';
-      document.getElementById('form_price').value = total.toFixed(2);
     }
 
+    function removeCartItem(id) {
+      cart = cart.filter(i => i.id !== id);
+      updateCartUI();
+    }
+
+    function goToCheckout(modalId) {
+      closeModal(modalId);
+      document.getElementById('checkout-section').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Fulfillment switching
     function toggleFulfillmentMode() {
       const mode = document.getElementById('mode_of_transpo').value;
       const deliveryFields = document.getElementById('delivery-fields');
@@ -704,106 +733,406 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       if (mode === '1') { // Delivery
         deliveryFields.style.display = 'flex';
         pickupInfo.style.display = 'none';
-        dateLabel.textContent = 'Preferred Delivery Date & Time';
+        dateLabel.innerText = "Preferred Delivery Date & Time";
         addressInput.setAttribute('required', 'required');
-        setTimeout(() => { if (map) map.invalidateSize(); }, 200);
       } else { // Pickup
         deliveryFields.style.display = 'none';
         pickupInfo.style.display = 'block';
-        dateLabel.textContent = 'Preferred Pickup Date & Time';
+        dateLabel.innerText = "Preferred Pickup Date & Time";
         addressInput.removeAttribute('required');
       }
+
+      // Re-evaluate location filters for current selected date
+      updatePickupLocationsForSelectedDate();
+      // Ensure maps render correctly after visibility changes
+      setTimeout(() => {
+        try { if (typeof deliveryMap !== 'undefined') deliveryMap.invalidateSize(); } catch(e){}
+      }, 250);
     }
-    
 
-    function initMap() {
-      map = L.map('delivery-map').setView([defaultLat, defaultLng], 14);
+    // Dynamic Pickup Locations Filter
+    function updatePickupLocationsForSelectedDate() {
+      const selectedDate = document.getElementById('selected_date_val').value;
+      const branchSelect = document.getElementById('pickup_branch');
+      const noteEl = document.getElementById('location_note');
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
+      if (!selectedDate) {
+        branchSelect.innerHTML = '<option value="">-- Select Date First --</option>';
+        noteEl.style.display = 'none';
+        return;
+      }
 
-      marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
-
-      updateCoords(defaultLat, defaultLng);
-
-      marker.on('dragend', function (e) {
-        const coord = e.target.getLatLng();
-        updateCoords(coord.lat, coord.lng);
-        reverseGeocode(coord.lat, coord.lng);
+      // Filter active locations based on date availability overrides
+      const availableLocs = activeLocations.filter(loc => {
+        if (dateLocationOverrides[selectedDate] && dateLocationOverrides[selectedDate][loc.id] !== undefined) {
+          return dateLocationOverrides[selectedDate][loc.id] === 1;
+        }
+        return true;
       });
 
-      map.on('click', function (e) {
-        marker.setLatLng(e.latlng);
-        updateCoords(e.latlng.lat, e.latlng.lng);
-        reverseGeocode(e.latlng.lat, e.latlng.lng);
+      branchSelect.innerHTML = '';
+
+      if (availableLocs.length === 0) {
+        branchSelect.innerHTML = '<option value="">No pickup stalls available for this date</option>';
+        noteEl.style.display = 'none';
+        return;
+      }
+
+      // helper to ensure coordinates are valid numbers within range
+      function clampCoord(val, fallback, min, max) {
+        const n = parseFloat(val);
+        if (!isFinite(n)) return fallback;
+        if (n < min || n > max) return fallback;
+        return n;
+      }
+
+      availableLocs.forEach(loc => {
+        const option = document.createElement('option');
+        option.value = loc.location_name;
+        option.textContent = `${loc.location_name} (${loc.address})`;
+        const lat = clampCoord(loc.latitude, 10.76498, -90, 90);
+        const lng = clampCoord(loc.longitude, 124.91874, -180, 180);
+        option.setAttribute('data-lat', lat);
+        option.setAttribute('data-lng', lng);
+        branchSelect.appendChild(option);
       });
+
+      // Update pickup map to reflect currently selected branch
+      updatePickupMapFromSelect();
+
+      // Auto-default selection if only 1 stall is open on this date
+      if (availableLocs.length === 1) {
+        branchSelect.selectedIndex = 0;
+        noteEl.innerText = `Note: Only ${availableLocs[0].location_name} is open for pickup on this date.`;
+        noteEl.style.display = 'block';
+      } else {
+        noteEl.style.display = 'none';
+      }
     }
 
-    function updateCoords(lat, lng) {
-      document.getElementById('latitude').value = lat;
-      document.getElementById('longitude').value = lng;
+    // Custom Calendar Logic
+    function openPinkCalendar() {
+      renderPinkCalendar();
+      document.getElementById('pink-calendar-modal').style.display = 'flex';
     }
 
-    function reverseGeocode(lat, lng) {
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data && data.display_name) {
-            document.getElementById('address').value = data.display_name;
+    function closePinkCalendar() {
+      document.getElementById('pink-calendar-modal').style.display = 'none';
+    }
+
+    function navigateCalendarMonth(step) {
+      calCurrentDate.setMonth(calCurrentDate.getMonth() + step);
+      renderPinkCalendar();
+    }
+
+    function renderPinkCalendar() {
+      const year = calCurrentDate.getFullYear();
+      const month = calCurrentDate.getMonth();
+
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      document.getElementById('cal-month-year').innerText = `${monthNames[month]} ${year}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const grid = document.getElementById('cal-days-container');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < firstDay; i++) {
+        const emptyCell = document.createElement('div');
+        grid.appendChild(emptyCell);
+      }
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const currentMode = document.getElementById('mode_of_transpo').value;
+      const selectedVal = document.getElementById('selected_date_val').value;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const cellDate = new Date(year, month, day);
+        const yyyy = year;
+        const mm = String(month + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+
+        const cell = document.createElement('div');
+        cell.className = 'cal-day-cell';
+        cell.innerHTML = `<span>${day}</span>`;
+
+        let isDisabled = false;
+
+        if (cellDate < today) {
+          isDisabled = true;
+        }
+
+        const blockInfo = blockedDatesData.find(b => b.blocked_date === dateStr);
+        if (blockInfo) {
+          const service = blockInfo.service_type;
+          if (service === 'both') {
+            isDisabled = true;
+            cell.innerHTML += `<span class="cal-tag tag-closed">CLOSED</span>`;
+          } else if (service === 'delivery' && currentMode === '1') {
+            isDisabled = true;
+            cell.innerHTML += `<span class="cal-tag tag-nodel">NO DEL</span>`;
+          } else if (service === 'pickup' && currentMode === '2') {
+            isDisabled = true;
+            cell.innerHTML += `<span class="cal-tag tag-nopick">NO PICK</span>`;
           }
-        })
-        .catch(() => {
-          // keep current address value if reverse lookup fails
-        });
+        }
+
+        if (selectedVal === dateStr) {
+          cell.classList.add('selected');
+        }
+
+        if (isDisabled) {
+          cell.classList.add('disabled');
+        } else {
+          cell.onclick = () => selectCalendarDate(dateStr, `${monthNames[month]} ${day}, ${year}`);
+        }
+
+        grid.appendChild(cell);
+      }
+    }
+
+    function selectCalendarDate(dateStr, formattedText) {
+      document.getElementById('selected_date_val').value = dateStr;
+      document.getElementById('date-display-text').innerText = formattedText;
+      document.getElementById('date-display-text').style.color = 'var(--text-dark)';
+      closePinkCalendar();
+      updatePickupLocationsForSelectedDate();
+    }
+
+    // Leaflet Map Initialization & Search (deliveryMap). Pickup uses Google embed for viewing.
+    let deliveryMap, deliveryMarker;
+
+    function initMaps() {
+      const defaultLat = 10.76498;
+      const defaultLng = 124.91874;
+
+      // Shared tile layer
+      const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      });
+
+      // Pink icon
+      const pinkIcon = L.divIcon({
+        className: 'custom-pink-pin',
+        html: '<div style="background-color:#d9658b; width:18px; height:18px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.4);"></div>',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+
+      // Delivery map
+      deliveryMap = L.map('delivery-map').setView([defaultLat, defaultLng], 13);
+      tiles.addTo(deliveryMap);
+      deliveryMarker = L.marker([defaultLat, defaultLng], { draggable: true, icon: pinkIcon }).addTo(deliveryMap);
+
+      deliveryMarker.on('dragend', function () {
+        const coord = deliveryMarker.getLatLng();
+        document.getElementById('latitude').value = coord.lat;
+        document.getElementById('longitude').value = coord.lng;
+        // Reverse geocode to update address input
+        reverseGeocode(coord.lat, coord.lng, function(addr){ if (addr) document.getElementById('address').value = addr; });
+        updateCoordsDisplay('delivery', coord.lat, coord.lng);
+      });
+
+      // Click on map to place delivery marker and update address
+      deliveryMap.on('click', function(e){
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        deliveryMarker.setLatLng([lat, lng]);
+        deliveryMap.setView([lat, lng], 16);
+        document.getElementById('latitude').value = lat;
+        document.getElementById('longitude').value = lng;
+        reverseGeocode(lat, lng, function(addr){ if (addr) document.getElementById('address').value = addr; });
+        updateCoordsDisplay('delivery', lat, lng);
+      });
+
+      document.getElementById('latitude').value = defaultLat;
+      document.getElementById('longitude').value = defaultLng;
+
+      // initialize delivery coords display
+      updateCoordsDisplay('delivery', defaultLat, defaultLng);
+
+      // Pickup map (Google embed) - readonly viewer; we'll set iframe src dynamically
+      const pickupContainer = document.getElementById('pickup-map');
+      if (pickupContainer) {
+        const iframeSrc = `https://www.google.com/maps?q=${defaultLat},${defaultLng}&z=15&output=embed`;
+        pickupContainer.innerHTML = `<iframe id="pickup-iframe" src="${iframeSrc}" class="map-embed" style="width:100%; height:220px; border:0; border-radius:12px;"></iframe>`;
+      }
+
+      // When pickup option changes selection, we will move this pickupMarker
+      const branchSelect = document.getElementById('pickup_branch');
+      branchSelect.addEventListener('change', function(){ updatePickupMapFromSelect(); });
+
+      // When maps are created but container size may be hidden initially, invalidate size when shown
+      setTimeout(() => { try { if (deliveryMap) deliveryMap.invalidateSize(); } catch(e){} }, 200);
+      const gp = document.getElementById('open-pickup-google');
+      if (gp) gp.href = `https://www.google.com/maps/search/?api=1&query=${defaultLat},${defaultLng}`;
+      updateCoordsDisplay('pickup', defaultLat, defaultLng);
     }
 
     function searchLocation() {
       const query = document.getElementById('address').value;
       if (!query) {
-        showCustomAlert("Please enter a location to search.");
+        customAlert("Please type an address or location to search.");
         return;
       }
 
-      const fullQuery = query + ", Javier, Leyte, Philippines";
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}`)
-        .then(response => response.json())
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
         .then(data => {
           if (data && data.length > 0) {
             const lat = parseFloat(data[0].lat);
             const lon = parseFloat(data[0].lon);
-            const displayName = data[0].display_name || query;
-
-            map.setView([lat, lon], 16);
-            marker.setLatLng([lat, lon]);
-            updateCoords(lat, lon);
-            document.getElementById('address').value = displayName;
+            deliveryMap.setView([lat, lon], 16);
+            deliveryMarker.setLatLng([lat, lon]);
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lon;
+            updateCoordsDisplay('delivery', lat, lon);
           } else {
-            showCustomAlert("Location not found. Please try a different landmark or click on the map.");
+            customAlert("Location not found. Please drag the pink pin to your target location on the map.");
           }
         })
-        .catch(() => {
-          showCustomAlert("Unable to connect to map services right now.");
-        });
+        .catch(() => customAlert("Error searching location. Please pin manually."));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      initMap();
-      toggleFulfillmentMode();
+    // Reverse geocode using Nominatim
+    function reverseGeocode(lat, lon, cb) {
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d && d.display_name) cb(d.display_name);
+          else cb(null);
+        })
+        .catch(() => cb(null));
+    }
+
+    // Debounced automatic search when typing address
+    let addressTypingTimer = null;
+    document.getElementById('address').addEventListener('input', function(){
+      clearTimeout(addressTypingTimer);
+      addressTypingTimer = setTimeout(() => {
+        const q = document.getElementById('address').value;
+        if (q && q.length > 3) {
+          // try to search but don't annoy user; silent failures handled
+          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lon = parseFloat(data[0].lon);
+                deliveryMap.setView([lat, lon], 16);
+                deliveryMarker.setLatLng([lat, lon]);
+                document.getElementById('latitude').value = lat;
+                document.getElementById('longitude').value = lon;
+                updateCoordsDisplay('delivery', lat, lon);
+              }
+            })
+            .catch(()=>{});
+        }
+      }, 700);
     });
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const dateInput = document.getElementById('date_of_pickup');
-      if (dateInput) {
-        const now = new Date();
-        // Offset local time format to ISO string (YYYY-MM-DDTHH:mm)
-        const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-                          .toISOString()
-                          .slice(0, 16);
-        dateInput.min = localIso;
+    // Update pickup map marker from the currently selected branch option
+    function updatePickupMapFromSelect() {
+      const sel = document.getElementById('pickup_branch');
+      const opt = sel.options[sel.selectedIndex];
+      if (!opt) return;
+      const lat = parseFloat(opt.getAttribute('data-lat') || '10.76498');
+      const lng = parseFloat(opt.getAttribute('data-lng') || '124.91874');
+      // Validate ranges
+      const validLat = (isFinite(lat) && lat >= -90 && lat <= 90) ? lat : 10.76498;
+      const validLng = (isFinite(lng) && lng >= -180 && lng <= 180) ? lng : 124.91874;
+      // update pickup iframe viewer
+      const pickupFrame = document.getElementById('pickup-iframe');
+      if (pickupFrame) {
+        pickupFrame.src = `https://www.google.com/maps?q=${validLat},${validLng}&z=15&output=embed`;
       }
-    });
-  </script>
+      // when pickup is selected, set the hidden latitude/longitude so server receives it
+      document.getElementById('latitude').value = validLat;
+      document.getElementById('longitude').value = validLng;
+      const gp = document.getElementById('open-pickup-google');
+      if (gp) gp.href = `https://www.google.com/maps/search/?api=1&query=${validLat},${validLng}`;
+      updateCoordsDisplay('pickup', validLat, validLng);
+    }
 
+    // Update visible lat/lng readouts for delivery or pickup
+    function updateCoordsDisplay(kind, lat, lng) {
+      try {
+        const el = document.getElementById(kind + '-coords');
+        if (el) el.innerText = `Lat: ${parseFloat(lat).toFixed(6)}, Lng: ${parseFloat(lng).toFixed(6)}`;
+      } catch (e) { }
+    }
+
+    // Format YYYY-MM-DD to a friendly display
+    function formatDisplayDate(dateStr) {
+      try {
+        const d = new Date(dateStr + 'T00:00:00');
+        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        return `${monthNames[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      } catch (e) { return dateStr; }
+    }
+
+    // Find the next available date starting from today (checks blockedDatesData)
+    function findNextAvailableDate() {
+      const mode = document.getElementById('mode_of_transpo') ? document.getElementById('mode_of_transpo').value : '2';
+      const today = new Date(); today.setHours(0,0,0,0);
+      for (let i = 0; i < 60; i++) {
+        const check = new Date(today);
+        check.setDate(today.getDate() + i);
+        const yyyy = check.getFullYear();
+        const mm = String(check.getMonth() + 1).padStart(2, '0');
+        const dd = String(check.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+
+        const blockInfo = (blockedDatesData || []).find(b => b.blocked_date === dateStr);
+        if (blockInfo) {
+          const svc = blockInfo.service_type;
+          if (svc === 'both') continue;
+          if (svc === 'delivery' && mode === '1') continue;
+          if (svc === 'pickup' && mode === '2') continue;
+        }
+
+        // not blocked, return this date
+        return dateStr;
+      }
+      return null;
+    }
+
+    window.onload = function() {
+      initMaps();
+      toggleFulfillmentMode();
+
+      // set default time to 10:00 if not provided
+      const timeSelect = document.getElementById('selected_time_val');
+      if (timeSelect && !timeSelect.value) timeSelect.value = '10:00';
+
+      // set default date to today if available, otherwise next available date
+      const dateInput = document.getElementById('selected_date_val');
+      const displayText = document.getElementById('date-display-text');
+      if (dateInput && !dateInput.value) {
+        const nextDate = findNextAvailableDate();
+        if (nextDate) {
+          dateInput.value = nextDate;
+          if (displayText) {
+            displayText.innerText = formatDisplayDate(nextDate);
+            displayText.style.color = 'var(--text-dark)';
+          }
+          updatePickupLocationsForSelectedDate();
+        }
+      }
+
+      // If URL contains ?category=ID then auto-open that category modal (ids: cat-<ID>)
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const catId = params.get('category');
+        if (catId) {
+          // Delay to allow modals to be rendered
+          setTimeout(() => { const modalId = 'cat-' + catId; if (document.getElementById(modalId)) openModal(modalId); }, 300);
+        }
+      } catch (e) {}
+    };
+  </script>
 </body>
 </html>
