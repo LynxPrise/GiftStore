@@ -545,7 +545,38 @@ try {
       padding-top: 24px;
       font-size: 12px;
     }
+    /* .lp-footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08); /* Optional subtle divider line */
+      /* font-size: 13px;
+      color: var(--text-muted);
+    }  */
 
+    .developer-credit a {
+      color: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .developer-credit a:hover {
+      color: #d85c83; /* Matching LynxPrise brand accent */
+      text-decoration: underline;
+    }
+
+    @media (max-width: 576px) {
+      .lp-footer-bottom {
+        flex-direction: column;
+        text-align: center;
+      }
+    }
+
+    
     /* Responsive Design */
    @media (max-width: 900px) {
       .lp-nav {
@@ -572,6 +603,35 @@ try {
         font-size: 48px;
       }
     }
+
+    .lp-footer-nav {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap; /* Allows wrapping cleanly on smaller mobile screens */
+    }
+
+    .lp-footer-nav a {
+      color: inherit;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s ease, opacity 0.2s ease;
+    }
+
+    /* Hover state for interactive feel */
+    .lp-footer-nav a:hover {
+      color: #d85c83; /* Your primary brand pink */
+      text-decoration: underline;
+    }
+
+    .lp-footer-nav .dot {
+      opacity: 0.6;
+      font-size: 10px;
+    }
+
   </style>
 </head>
 <body>
@@ -774,11 +834,21 @@ try {
       <div class="lp-footer-grid">
         <div>
           <a href="#" class="lp-logo" style="font-size: 20px;">Lynx<span>Prise</span></a>
-          <p style="margin-top: 8px;">Gifts ▪ Souvenirs ▪ Balloons ▪ Cakes ▪ Surprises</p>
+            <nav class="lp-footer-nav">
+              <a href="#how-it-works">How to Order</a>
+              <span class="dot">▪</span>
+              <a href="#categories">Categories</a>
+              <span class="dot">▪</span>
+              
+              <a href="https://www.google.com/maps/search/?api=1&query=10.76498,124.91874" target="_blank" rel="noopener noreferrer">Store Location</a>
+              <span class="dot">▪</span>
+              <a href="U_Login.php">LogIn</a>
+              
+            </nav>
         </div>
         <div class="lp-footer-col">
-          <h5>Delivery</h5>
-          <p>Serving Eastern Visayas with same-day and scheduled delivery slots.</p>
+          <h5>Service & Ordering</h5>
+          <p>We accept walk-ins, local store pick-ups, and offer same-day or scheduled delivery for all orders.</p>
         </div>
         <div class="lp-footer-col">
           <h5>Payments</h5>
@@ -789,7 +859,10 @@ try {
 
       
       <div class="lp-footer-bottom">
-        &copy; 2026 LynxPrise. All rights reserved.
+        <span>&copy; 2026 LynxPrise</span>
+        <span class="developer-credit">
+          Developed by <a href="https://lynx-funnel-tau.vercel.app" target="_blank" rel="noopener noreferrer">LynxScale</a>
+        </span>
       </div>
     </div>
   </footer>
