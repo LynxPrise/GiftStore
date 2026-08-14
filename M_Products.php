@@ -465,6 +465,8 @@ $products = $pdo->query($sql)->fetchAll();
                 <li><a href="M_Dashboard.php">Orders</a></li>
                 <li><a href="M_Products.php">Products</a></li>
                 <li><a href="M_Categories.php">Categories</a></li>
+                 <li><a href="M_Feedbacks.php">Feedbacks</a></li>
+                <li><a href="M_Settings.php">Settings</a></li>
                 <li><a href="index.php">Back To Home</a></li>
             </ul>
             <a href="U_Logout.php" class="btn-logout">Logout</a>
