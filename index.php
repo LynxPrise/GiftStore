@@ -217,6 +217,23 @@ try {
     .lp-hero-trust-row {
       display: flex;
       gap: 20px;
+      align-items: center; /* Keeps icons and text vertically aligned */
+    }
+
+    /* New link styles to match the other spans */
+    .map-link {
+      color: var(--text-muted);
+      font-weight: 500;            /* Inherits var(--text-muted) from parent */
+      text-decoration: none;      /* Removes default blue underline */
+      font-size: 13px;          /* Keeps font size 13px */
+      font-weight: 500;        /* Keeps font weight 500 */
+      transition: opacity 0.2s ease, text-decoration 0.2s ease;
+    }
+
+    /* Subtle hover state so users know it's interactive */
+    .map-link:hover {
+      text-decoration: underline; /* Adds underline on hover only */
+      opacity: 0.85;
     }
 
     .lp-hero-image-card {
@@ -509,6 +526,12 @@ try {
       margin-bottom: 40px;
     }
 
+    /* Store location map in footer */
+    .store-map { margin-top: 12px; }
+    .store-map .map-embed { width: 100%; height: 180px; border-radius: 10px; border: 0; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+    .store-map .map-link { display: inline-flex; gap:8px; align-items:center; margin-top:8px; color: var(--text-dark); font-weight:700; text-decoration:none; }
+    .store-map .map-link small { display:block; font-weight:600; color:var(--text-muted); font-size:12px; }
+
     .lp-footer-col h5 {
       font-weight: 700;
       color: var(--text-dark);
@@ -588,10 +611,14 @@ try {
                 <span>⭐ 100+ Happy Celebrations</span>
                 <span>🚚 On-Time Local Delivery</span>
               </div>
-              <div>
-                <span>💳 Easy GCash, Maya & COD</span>
+              <div class="lp-hero-trust-row">
+                <span>💳 Easy GCash & COD</span>
+                <span class="location-badge">
+                  📍 <a href="https://www.google.com/maps/search/?api=1&query=10.76498,124.91874" target="_blank" rel="noopener noreferrer" class="map-link">Visit Our Store Location</a>
+                </span>
               </div>
             </div>
+                      
           </div>
           <div class="lp-hero-image-card">
             <img src="Assets/Images/hero-surprise.jpg" alt="LynxPrise Floral Arrangement and Surprise Box">
@@ -756,13 +783,25 @@ try {
         <div class="lp-footer-col">
           <h5>Payments</h5>
           <p>GCash ▪ Maya ▪ Cash on Delivery</p>
+          
         </div>
       </div>
+
+      
       <div class="lp-footer-bottom">
         &copy; 2026 LynxPrise. All rights reserved.
       </div>
     </div>
   </footer>
+
+  <script>
+    function openMapModal() {
+      document.getElementById("mapModal").style.display = "flex";
+    }
+    function closeMapModal() {
+      document.getElementById("mapModal").style.display = "none";
+}
+    </script>
 
 </body>
 </html>
