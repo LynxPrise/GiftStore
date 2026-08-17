@@ -657,3 +657,8 @@ $js_location_overrides = json_encode($date_location_overrides);
     </main>
 </body>
 </html>
+
+<?php 
+// 4. Include Footer Component
+include 'M_Footer.php'; 
+?>

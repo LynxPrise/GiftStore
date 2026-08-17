@@ -717,3 +717,8 @@ $products = $pdo->query($sql)->fetchAll();
     </main>
 </body>
 </html>
+
+<?php 
+// 4. Include Footer Component
+include 'M_Footer.php'; 
+?>

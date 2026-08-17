@@ -35,5 +35,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <i class="fa-solid fa-house"></i> Back To Home
             </a>
         </li>
+        <!-- Logout Item inside Sidebar -->
+        <li class="sidebar-logout-item">
+            <a href="U_Logout" class="sidebar-logout-btn">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </a>
+        </li>
     </ul>
 </aside>

@@ -776,3 +776,8 @@ try {
 </main>
 </body>
 </html>
+
+<?php 
+// 4. Include Footer Component
+include 'M_Footer.php'; 
+?>
