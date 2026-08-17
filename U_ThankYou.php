@@ -2,57 +2,97 @@
 session_start();
 require_once 'U_db.php';
 
-// Get order_id passed via URL query parameter (e.g., U_ThankYou.php?order_id=18)
+// Get order_id and payment flag passed via URL query parameters
 $orderId = isset($_GET['order_id']) ? intval($_GET['order_id']) : 0;
+$paymentFlag = $_GET['payment'] ?? ''; // 'success' when redirected back from PayMongo
 
 // Fallback default values
 $customerName = "Valued Customer";
 $orderTotal = "0.00";
 $fulfillmentType = "Pick-Up / Delivery";
+$paymentMethodText = "Cash on Delivery (COD)";
+$paymentStatusDisplay = "UNPAID";
+$paymentBadgeColor = "#e67e22"; // Orange badge for UNPAID
 
 if ($orderId > 0) {
     try {
-        $stmt = $pdo->prepare("SELECT full_name, price, mode_of_transpo FROM orders WHERE id = :id LIMIT 1");
+        // 1. UPDATE PAYMENT STATUS IF RETURNING FROM PAYMONGO WITH SUCCESS FLAG
+        if ($paymentFlag === 'success') {
+            $updateStmt = $pdo->prepare("UPDATE orders SET payment_status = 'PAID', status = 'processing' WHERE id = :id");
+            $updateStmt->execute([':id' => $orderId]);
+        }
+
+        // 2. FETCH UPDATED ORDER DETAILS FROM DATABASE
+        $stmt = $pdo->prepare("SELECT full_name, price, mode_of_transpo, mode_of_payment, payment_status FROM orders WHERE id = :id LIMIT 1");
         $stmt->execute([':id' => $orderId]);
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($order) {
-            // Match 'full_name' column
+            // Customer Name
             if (!empty($order['full_name'])) {
                 $customerName = $order['full_name'];
             }
 
-            // Match 'price' column
+            // Total Price
             if (isset($order['price'])) {
                 $orderTotal = number_format(floatval($order['price']), 2);
             }
 
-            // Map 'mode_of_transpo' column (1 = Delivery, 2 = Pick-Up)
+            // Fulfillment Mode (1 = Delivery, 0 or other = Store Pick-Up)
             if (isset($order['mode_of_transpo'])) {
                 $fulfillmentType = ($order['mode_of_transpo'] == 1) ? "Delivery" : "Store Pick-Up";
             }
+
+            // Payment Mode (1 = Online Payment / QR Ph, 0 = COD)
+            if (isset($order['mode_of_payment'])) {
+                $paymentMethodText = ($order['mode_of_payment'] == 1) ? "Online Payment (QR Ph / PayMongo)" : "Cash on Delivery (COD)";
+            }
+
+            // Payment Status Display & Styling
+            if (!empty($order['payment_status'])) {
+                $statusUpper = strtoupper($order['payment_status']);
+                if ($statusUpper === 'PAID') {
+                    $paymentStatusDisplay = "PAID";
+                    $paymentBadgeColor = "#27ae60"; // Green badge for PAID
+                } elseif ($statusUpper === 'PENDING') {
+                    $paymentStatusDisplay = "PENDING";
+                    $paymentBadgeColor = "#f39c12"; // Yellow badge for PENDING
+                } else {
+                    $paymentStatusDisplay = "UNPAID";
+                    $paymentBadgeColor = "#e67e22"; // Orange badge for UNPAID
+                }
+            }
         }
     } catch (PDOException $e) {
-        // Silently handle error to render soft fallback UI
+        // Silently handle database errors to preserve UI fallback
     }
 }
 
+// Dynamic Description Message Based on Payment Status
+if ($paymentStatusDisplay === 'PAID') {
+    $thankYouDescription = "We have received your payment via QR Ph! To confirm your preparation slot and get real-time order updates, send us a quick message on Messenger below.";
+} else {
+    $thankYouDescription = "We have successfully received your order details! To confirm your preparation slot, receive your receipt, and track real-time updates, please send us a quick message on Messenger below.";
+}
+
 // --------------------------------------------------------------------------
-// MESSENGER DEEP LINK CONFIGURATION (Using your exact Page ID)
+// MESSENGER DEEP LINK CONFIGURATION
 // --------------------------------------------------------------------------
 $pageId = "278284815370670"; 
 
 // Dynamic message pre-filled in Messenger chat box
-$rawMessage = "New Order From Customer #" . ($orderId > 0 ? $orderId : 'N/A') . "\n\n"
+$rawMessage = "New Order Confirmation #" . ($orderId > 0 ? $orderId : 'N/A') . "\n\n"
             . "Name: " . $customerName . "\n"
             . "Total Amount: ₱" . $orderTotal . "\n"
+            . "Payment Method: " . $paymentMethodText . "\n"
+            . "Payment Status: " . $paymentStatusDisplay . "\n"
             . "Fulfillment: " . $fulfillmentType . "\n\n"
-            . "I'm messaging to confirm my receipt and order details!";
+            . "Hi! I'm messaging to confirm my receipt and order details!";
 
-// Encodes the message string so spaces and newlines parse correctly in the URL
+// Encodes the message string for URL
 $encodedMessage = rawurlencode($rawMessage);
 
-// Direct m.me link using your Page ID (Opens Messenger App on mobile / Messenger Web on desktop)
+// Direct m.me link using Page ID
 $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
 ?>
 <!DOCTYPE html>
@@ -175,8 +215,8 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
     .lp-success-icon {
       width: 64px;
       height: 64px;
-      background-color: rgba(217, 101, 139, 0.15);
-      color: var(--accent-pink);
+      background-color: rgba(39, 174, 96, 0.15);
+      color: #27ae60;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -218,6 +258,7 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
     .lp-summary-row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: 14px;
       margin-bottom: 8px;
       color: var(--text-muted);
@@ -229,6 +270,15 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
       color: var(--text-dark);
       border-top: 1px solid rgba(232, 195, 176, 0.4);
       padding-top: 8px;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 12px;
+      color: #ffffff;
+      letter-spacing: 0.5px;
     }
 
     .lp-messenger-box {
@@ -285,7 +335,6 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
       color: var(--accent-pink);
     }
 
-    /* Mobile Responsiveness & Navigation Hide */
     @media (max-width: 640px) {
       .lp-nav-links {
         display: none;
@@ -319,7 +368,7 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
 
   <div class="lp-thankyou-wrapper">
     <div class="lp-thankyou-card">
-      <div class="lp-success-icon">🌸</div>
+      <div class="lp-success-icon">✓</div>
       <h1 class="lp-thankyou-title">Thank You for Your Order!</h1>
       
       <?php if ($orderId > 0): ?>
@@ -327,7 +376,7 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
       <?php endif; ?>
 
       <p class="lp-thankyou-desc">
-        We have successfully received your order details! To confirm your preparation slot, receive your official receipt, and track real-time updates, please send us a quick message on Messenger.
+        <?= htmlspecialchars($thankYouDescription) ?>
       </p>
 
       <div class="lp-summary-box">
@@ -340,6 +389,14 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
           <span><?= htmlspecialchars($fulfillmentType) ?></span>
         </div>
         <div class="lp-summary-row">
+          <span>Payment Method:</span>
+          <span><?= htmlspecialchars($paymentMethodText) ?></span>
+        </div>
+        <div class="lp-summary-row">
+          <span>Payment Status:</span>
+          <span class="status-badge" style="background-color: <?= $paymentBadgeColor ?>;"><?= htmlspecialchars($paymentStatusDisplay) ?></span>
+        </div>
+        <div class="lp-summary-row">
           <span>Total Amount:</span>
           <span>₱<?= $orderTotal ?></span>
         </div>
@@ -347,7 +404,7 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
 
       <div class="lp-messenger-box">
         <h4>Connect on Messenger for Receipts & Updates</h4>
-        <p>Click below to open Messenger. Your order details will automatically load inside your chat!</p>
+        <p>Click below to open Messenger. Your order details will automatically populate in your message box!</p>
         <a href="<?= $messengerUrl ?>" target="_blank" class="btn-messenger">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.45 5.512 3.715 7.202V22l3.39-1.861c.928.257 1.91.396 2.895.396 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.09 12.445l-2.543-2.714-4.966 2.714 5.464-5.798 2.583 2.714 4.926-2.714-5.464 5.798z"/>

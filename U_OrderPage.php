@@ -96,67 +96,80 @@ $js_location_overrides = json_encode($date_location_overrides);
 
 // Handle Order Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
-    try {
-        $recipient_details = "";
-        if (isset($_POST['mode_of_transpo']) && $_POST['mode_of_transpo'] == '1') {
-            $rec_name = trim($_POST['recipient_name'] ?? '');
-            $rec_phone = trim($_POST['recipient_contact'] ?? '');
-            if ($rec_name || $rec_phone) {
-                $recipient_details = "[Recipient: {$rec_name} | Contact: {$rec_phone}]\n";
-            }
-        } else {
-            $pickup_branch = trim($_POST['pickup_branch'] ?? 'Main Branch - Malitbogay');
-            $recipient_details = "[Pickup Branch: {$pickup_branch}]\n";
-        }
-
-        $final_card_message = $recipient_details . trim($_POST['notes'] ?? '');
-        $lat = !empty($_POST['latitude']) ? floatval($_POST['latitude']) : NULL;
-        $lng = !empty($_POST['longitude']) ? floatval($_POST['longitude']) : NULL;
-
-        // Combine Date + Time input into datetime format
-        $pickup_date_formatted = NULL;
-        if (!empty($_POST['selected_date_val'])) {
-            $time_val = !empty($_POST['selected_time_val']) ? $_POST['selected_time_val'] : '10:00';
-            $pickup_date_formatted = $_POST['selected_date_val'] . ' ' . $time_val . ':00';
-        }
-
-        $sql = "INSERT INTO orders (
-                    user_id, products_id, full_name, phone_number, address, 
-                    latitude, longitude, product_name, price, mode_of_transpo, 
-                    date_of_pickup, product_image, status, card_message
-                ) VALUES (
-                    :user_id, :products_id, :full_name, :phone_number, :address, 
-                    :latitude, :longitude, :product_name, :price, :mode_of_transpo, 
-                    :date_of_pickup, :product_image, 'pending', :card_message
-                )";
-
-        $stmt = $pdo->prepare($sql);
-        
-        $stmt->execute([
-            ':user_id'          => !empty($_POST['user_id']) ? intval($_POST['user_id']) : NULL,
-            ':products_id'      => !empty($_POST['products_id']) ? intval($_POST['products_id']) : NULL,
-            ':full_name'        => trim($_POST['full_name'] ?? ''),
-            ':phone_number'     => trim($_POST['phone_number'] ?? ''),
-            ':address'          => trim($_POST['address'] ?? ''),
-            ':latitude'         => $lat,
-            ':longitude'        => $lng,
-            ':product_name'     => trim($_POST['product_name'] ?? ''),
-            ':price'            => floatval($_POST['price'] ?? 0),
-            ':mode_of_transpo'  => intval($_POST['mode_of_transpo'] ?? 1),
-            ':date_of_pickup'   => $pickup_date_formatted,
-            ':product_image'    => trim($_POST['product_image'] ?? ''),
-            ':card_message'     => $final_card_message
-        ]);
-
-        $last_id = $pdo->lastInsertId();
-
-        header("Location: U_ThankYou.php?order_id=" . $last_id);
-        exit;
-
-    } catch (PDOException $e) {
-        $order_status_message = "<div style='background:#ffebee; color:#d32f2f; padding:12px; border-radius:12px; text-align:center; margin-bottom:20px; font-weight:600;'>Error saving order: " . htmlspecialchars($e->getMessage()) . "</div>";
+  try {
+    $recipient_details = "";
+    if (isset($_POST['mode_of_transpo']) && $_POST['mode_of_transpo'] == '1') {
+      $rec_name = trim($_POST['recipient_name'] ?? '');
+      $rec_phone = trim($_POST['recipient_contact'] ?? '');
+      if ($rec_name || $rec_phone) {
+        $recipient_details = "[Recipient: {$rec_name} | Contact: {$rec_phone}]\n";
+      }
+    } else {
+      $pickup_branch = trim($_POST['pickup_branch'] ?? 'Main Branch - Malitbogay');
+      $recipient_details = "[Pickup Branch: {$pickup_branch}]\n";
     }
+
+    $final_card_message = $recipient_details . trim($_POST['notes'] ?? '');
+    $lat = !empty($_POST['latitude']) ? floatval($_POST['latitude']) : NULL;
+    $lng = !empty($_POST['longitude']) ? floatval($_POST['longitude']) : NULL;
+
+    // Combine Date + Time input into datetime format
+    $pickup_date_formatted = NULL;
+    if (!empty($_POST['selected_date_val'])) {
+      $time_val = !empty($_POST['selected_time_val']) ? $_POST['selected_time_val'] : '10:00';
+      $pickup_date_formatted = $_POST['selected_date_val'] . ' ' . $time_val . ':00';
+    }
+
+    // Mode of payment handling
+    $mode_of_payment = intval($_POST['mode_of_payment'] ?? 0);
+    $initial_payment_status = ($mode_of_payment === 1) ? 'PENDING' : 'UNPAID';
+
+    $sql = "INSERT INTO orders (
+          user_id, products_id, full_name, phone_number, address, 
+          latitude, longitude, product_name, price, mode_of_transpo, 
+          mode_of_payment, payment_status, date_of_pickup, product_image, status, card_message
+        ) VALUES (
+          :user_id, :products_id, :full_name, :phone_number, :address, 
+          :latitude, :longitude, :product_name, :price, :mode_of_transpo, 
+          :mode_of_payment, :payment_status, :date_of_pickup, :product_image, 'pending', :card_message
+        )";
+
+    $stmt = $pdo->prepare($sql);
+
+    $stmt->execute([
+      ':user_id'          => !empty($_POST['user_id']) ? intval($_POST['user_id']) : NULL,
+      ':products_id'      => !empty($_POST['products_id']) ? intval($_POST['products_id']) : NULL,
+      ':full_name'        => trim($_POST['full_name'] ?? ''),
+      ':phone_number'     => trim($_POST['phone_number'] ?? ''),
+      ':address'          => trim($_POST['address'] ?? ''),
+      ':latitude'         => $lat,
+      ':longitude'        => $lng,
+      ':product_name'     => trim($_POST['product_name'] ?? ''),
+      ':price'            => floatval($_POST['price'] ?? 0),
+      ':mode_of_transpo'  => intval($_POST['mode_of_transpo'] ?? 1),
+      ':mode_of_payment'  => $mode_of_payment,
+      ':payment_status'   => $initial_payment_status,
+      ':date_of_pickup'   => $pickup_date_formatted,
+      ':product_image'    => trim($_POST['product_image'] ?? ''),
+      ':card_message'     => $final_card_message
+    ]);
+
+    $last_id = $pdo->lastInsertId();
+
+    // Redirect based on selected payment method
+    if ($mode_of_payment === 1) {
+      header("Location: create_checkout.php?order_id=" . $last_id);
+    } else {
+      header("Location: U_ThankYou.php?order_id=" . $last_id);
+    }
+    exit;
+
+  } catch (PDOException $e) {
+    $order_status_message = "<div style='background:#ffebee; color:#d32f2f; padding:12px; border-radius:12px; text-align:center; margin-bottom:20px; font-weight:600;'>Error saving order: " . htmlspecialchars($e->getMessage()) . "</div>";
+  }
 }
+
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -280,6 +293,127 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     .tag-nodel { background: #ffe0b2; color: #e65100; }
     .tag-nopick { background: #e0f7fa; color: #006064; }
     .tag-closed { background: #ffebee; color: #c62828; }
+
+      
+
+    /* Payment Modal Styling */
+    .payment-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .payment-modal-content {
+      background: #fff;
+      padding: 24px;
+      border-radius: 16px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      border: none;
+      background: transparent;
+      font-size: 24px;
+      cursor: pointer;
+      color: #888;
+    }
+
+    .payment-qr-img {
+      width: 200px;
+      height: 200px;
+      object-fit: contain;
+      margin: 15px 0;
+      border: 1px solid #eee;
+      border-radius: 8px;
+    }
+
+    .modal-note {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.4;
+    }
+
+    .btn-confirm-modal {
+      margin-top: 15px;
+      background-color: #b84357;
+      color: #fff;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    } 
+
+
+
+
+  .payment-selection-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Places both options side-by-side */
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.payment-option-card {
+  display: flex;
+  flex-direction: column; /* Stacks title above description inside each card */
+  justify-content: center;
+  padding: 10px 14px;
+  border: 2px solid #ebd0d7;
+  border-radius: 12px;
+  cursor: pointer;
+  background-color: #fff;
+  transition: all 0.2s ease-in-out;
+  text-align: left;
+}
+
+.payment-option-card:hover {
+  border-color: #d17b88;
+  background-color: #fffafb;
+}
+
+.payment-option-card.active {
+  border-color: #b84357;
+  background-color: #fff0f3;
+}
+
+.payment-title {
+  display: block;
+  font-weight: 600;
+      color: #3b2219;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .payment-desc {
+      display: block;
+      font-size: 11px;
+      color: #7a6560;
+      margin-top: 3px;
+      line-height: 1.2;
+    }
+
+    /* Mobile responsive fallback so cards stack cleanly on small phone screens */
+    @media (max-width: 480px) {
+      .payment-selection-group {
+        grid-template-columns: 1fr;
+      }
+    }
 
     @media (max-width: 640px) {
       .lp-nav-links { display: none; }
@@ -486,6 +620,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             <input class="lp-input" id="phone_number" name="phone_number" type="tel" required placeholder="09XX XXX XXXX" />
           </div>
         </div>
+
+          <!-- <div class="lp-grid-2" style="margin-top:8px;">
+            <div class="lp-field">
+              <label for="email">Email Address (for payment receipts)</label>
+              <input class="lp-input" id="email" name="email" type="email" placeholder="name@example.com" />
+            </div>
+            <div></div>
+          </div> -->
       </fieldset>
 
       <!-- Step 3: Fulfillment & Options -->
@@ -581,11 +723,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
           <label for="notes">Greeting Card Message / Special Instructions</label>
           <textarea class="lp-textarea" id="notes" name="notes" rows="3" placeholder="Write any card message or specific request..."></textarea>
         </div>
+
+        <!-- Hidden input to submit the payment value (0 = COD, 1 = PayMongo) -->
+<input type="hidden" name="mode_of_payment" id="mode_of_payment_input" value="0">
+
+<!-- Payment Options UI -->
+<div class="payment-selection-group">
+  <label class="payment-option-card active" id="card-cod" onclick="selectPaymentMethod(0)">
+    <input type="radio" name="payment_type" value="0" checked hidden>
+    <div class="payment-info">
+      <span class="payment-title">Cash on Delivery</span>
+      <span class="payment-desc">Pay upon receiving</span>
+    </div>
+  </label>
+
+  <label class="payment-option-card" id="card-paymongo" onclick="selectPaymentMethod(1)">
+    <input type="radio" name="payment_type" value="1" hidden>
+    <div class="payment-info">
+      <span class="payment-title">Online Payment</span>
+      <span class="payment-desc">GCash / Maya / Card</span>
+    </div>
+  </label>
+</div>
+
+<!-- Dynamic PayMongo QR / Online Payment Info Modal -->
+<div id="paymongo-info-modal" class="payment-modal-overlay" style="display: none;">
+  <div class="payment-modal-content">
+    <button type="button" class="modal-close-btn" onclick="closePaymongoModal()">&times;</button>
+    <div class="modal-header">
+      <h3>Pay via Online Payment</h3>
+      <p>Scan or complete payment after placing your order</p>
+    </div>
+    <div class="modal-body">
+      <img src="Assets/Images/paymongo.png" 
+     alt="PayMongo" 
+     class="payment-qr-img" 
+     style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block;">
+
+      <p class="modal-note">You will be automatically redirected to the secure PayMongo payment gateway right after clicking <strong>Place Order</strong>.</p>
+    </div>
+    <button type="button" class="btn-confirm-modal" onclick="closePaymongoModal()">Got it</button>
+  </div>
+</div>
+
       </fieldset>
 
       <button type="submit" name="place_order" class="btn-submit">Place Your Order</button>
     </form>
   </main>
+
+
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -1135,6 +1322,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         }
       } catch (e) {}
     };
+
+        function selectPaymentMethod(mode) {
+      // Set the hidden input value
+      document.getElementById('mode_of_payment_input').value = mode;
+
+      // Toggle active CSS classes
+      const codCard = document.getElementById('card-cod');
+      const paymongoCard = document.getElementById('card-paymongo');
+
+      if (mode === 1) {
+        codCard.classList.remove('active');
+        paymongoCard.classList.add('active');
+        openPaymongoModal(); // Show modal when PayMongo is selected
+      } else {
+        paymongoCard.classList.remove('active');
+        codCard.classList.add('active');
+      }
+    }
+
+    function openPaymongoModal() {
+      document.getElementById('paymongo-info-modal').style.display = 'flex';
+    }
+
+    function closePaymongoModal() {
+      document.getElementById('paymongo-info-modal').style.display = 'none';
+    }
+
+    // Require email when choosing online payment
+    document.getElementById('checkout-section').addEventListener('submit', function(e){
+      const mode = parseInt(document.getElementById('mode_of_payment_input').value || '0', 10);
+    });
+
   </script>
 </body>
 </html>
