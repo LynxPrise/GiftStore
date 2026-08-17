@@ -712,7 +712,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             <div id="pickup-map" style="width:100%; height:220px; border-radius:var(--radius-md); border:1px solid var(--gold-border);"></div>
             <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
               <div id="pickup-coords" style="font-size:13px; color:var(--text-muted);">Lat: - , Lng: -</div>
-              <a id="open-pickup-google" class="btn-nav" href="#" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
+              <a id="open-pickup-google" class="btn-nav" href="#" target="_blank" rel="noopener noreferrer">Open Maps</a>
             </div>
 
             
