@@ -357,13 +357,13 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
 <body>
 
   <nav class="lp-nav">
-    <a href="index.php" class="lp-logo">Lynx<span>Prise</span></a>
+    <a href="index" class="lp-logo">Lynx<span>Prise</span></a>
     <ul class="lp-nav-links">
-      <li><a href="index.php#categories">Categories</a></li>
-      <li><a href="index.php#testimonials">Feedbacks</a></li>
-      <li><a href="U_OrderPage.php">Order</a></li>
+      <li><a href="index#categories">Categories</a></li>
+      <li><a href="index#testimonials">Feedbacks</a></li>
+      <li><a href="U_OrderPage">Order</a></li>
     </ul>
-    <a href="U_OrderPage.php" class="btn-nav">Order Again!</a>
+    <a href="U_OrderPage" class="btn-nav">Order Again!</a>
   </nav>
 
   <div class="lp-thankyou-wrapper">
@@ -413,7 +413,7 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
         </a>
       </div>
 
-      <a href="index.php" class="btn-home">← Return to Home Page</a>
+      <a href="index" class="btn-home">← Return to Home Page</a>
     </div>
   </div>
 

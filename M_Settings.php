@@ -8,6 +8,10 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
 
 include 'U_db.php';
 
+include 'M_Header.php';
+include 'M_Sidebar.php';
+
+
 if (!isset($pdo) && isset($conn)) {
     $pdo = $conn;
 }
@@ -312,7 +316,7 @@ $js_location_overrides = json_encode($date_location_overrides);
 </head>
 <body>
 
-    <nav class="lp-nav">
+    <!-- <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
         <button class="nav-toggle" onclick="toggleNav()">☰</button>
         <div class="lp-nav-menu" id="navMenu">
@@ -326,7 +330,10 @@ $js_location_overrides = json_encode($date_location_overrides);
             </ul>
             <a href="U_Logout.php" class="btn-logout">Logout</a>
         </div>
-    </nav>
+    </nav> -->
+
+    
+<main class="main-workspace">
 
     <div class="container">
         <?php if (!empty($message)): ?>
@@ -647,5 +654,6 @@ $js_location_overrides = json_encode($date_location_overrides);
 
         renderCalendar();
     </script>
+    </main>
 </body>
 </html>

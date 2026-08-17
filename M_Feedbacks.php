@@ -9,6 +9,9 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
 
 include 'U_db.php';
 
+include 'M_Header.php';
+include 'M_Sidebar.php';
+
 $message = '';
 $message_type = '';
 
@@ -97,7 +100,7 @@ if (isset($_GET['delete_id'])) {
         $stmt = $pdo->prepare("DELETE FROM feedbacks WHERE id = :id");
         $stmt->execute([':id' => $delete_id]);
         
-        header("Location: M_Feedbacks.php?status=deleted");
+        header("Location: M_Feedbacks?status=deleted");
         exit();
     } catch (Exception $e) {
         $message = "Failed to delete: " . $e->getMessage();
@@ -560,7 +563,7 @@ try {
 <body>
 
     <!-- Header / Navigation -->
-    <nav class="lp-nav">
+    <!-- <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
         <button class="nav-toggle" onclick="toggleNav()" aria-label="Toggle Navigation">☰</button>
         <div class="lp-nav-menu" id="navMenu">
@@ -574,7 +577,10 @@ try {
             </ul>
             <a href="U_Logout.php" class="btn-logout">Logout</a>
         </div>
-    </nav>
+    </nav> -->
+
+    
+<main class="main-workspace">
 
     <!-- Main Container -->
     <div class="container">
@@ -767,5 +773,6 @@ try {
             }
         }
     </script>
+</main>
 </body>
 </html>

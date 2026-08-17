@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             if ($stmt->execute([$firstname, $lastname, $email, $hashed])) {
                 $success = "Account created successfully! Redirecting...";
-                header("refresh:2; url=index.php");
+                header("refresh:2; url=index");
             } else {
                 $error = "Something went wrong, try again!";
             }
@@ -199,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </form>
 
         <div class="footer-links">
-            <a href="U_Login.php">Already have an account? Sign In</a>
+            <a href="U_Login">Already have an account? Sign In</a>
         </div>
 
     </div>

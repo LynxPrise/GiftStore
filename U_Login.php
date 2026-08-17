@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_SESSION['user_role'] = $user['role'];
         $_SESSION['user_email'] = $user['email'];
         
-        header('Location: M_Dashboard.php');
+        header('Location: M_Dashboard');
         exit;
     } else {
         $error = "Invalid email or password!";
@@ -299,14 +299,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <!-- LEFT IMAGE SIDE -->
     <div class="left-side">
         <div>
-            <a href="index.php" class="lp-logo">Lynx<span>Prise</span></a>
+            <a href="index" class="lp-logo">Lynx<span>Prise</span></a>
         </div>
         <div class="left-text">
             <h1>Celebrate Every Moment</h1>
             <p>At LynxPrise, we bring you the best in gifts, flowers, balloons, and surprises. Perfect for birthdays, anniversaries, or special moments.</p>
         </div>
         <div class="left-footer">
-            <a href="Shop.php">Explore Our Shop</a>
+            <a href="Shop">Explore Our Shop</a>
         </div>
     </div>
 

@@ -1,37 +1,39 @@
-<!-- Mobile Navigation Bar (Displays only on screens <= 768px) -->
-<div class="admin-mobile-bar">
-    <a href="M_Dashboard.php" class="lp-logo">Lynx<span>Prise</span></a>
-    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleAdminSidebar()">☰</button>
-</div>
-
-<!-- Main Admin Sidebar Navigation -->
-<aside class="admin-sidebar" id="adminSidebar">
-    <div class="sidebar-header">
-        <a href="M_Dashboard.php" class="lp-logo">Lynx<span>Prise</span></a>
-    </div>
-
+<?php
+$current_page = basename($_SERVER['PHP_SELF']);
+?>
+<aside class="sidebar">
     <ul class="sidebar-menu">
-        <li><a href="M_Dashboard.php" class="<?= basename($_SERVER['PHP_SELF']) == 'M_Dashboard.php' ? 'active' : '' ?>">Orders</a></li>
-        <li><a href="M_Products.php" class="<?= basename($_SERVER['PHP_SELF']) == 'M_Products.php' ? 'active' : '' ?>">Products</a></li>
-        <li><a href="M_Categories.php" class="<?= basename($_SERVER['PHP_SELF']) == 'M_Categories.php' ? 'active' : '' ?>">Categories</a></li>
-        <li><a href="M_Feedbacks.php" class="<?= basename($_SERVER['PHP_SELF']) == 'M_Feedbacks.php' ? 'active' : '' ?>">Feedbacks</a></li>
-        <li><a href="M_Settings.php" class="<?= basename($_SERVER['PHP_SELF']) == 'M_Settings.php' ? 'active' : '' ?>">Settings</a></li>
-        <li><a href="U_OrderPage.php">Back To Home</a></li>
+        <li>
+            <a href="M_Dashboard" class="<?php echo ($current_page == 'M_Dashboard.php') ? 'active' : ''; ?>">
+                <i class="fa-solid fa-chart-line"></i> Dashboard
+            </a>
+        </li>
+        <li>
+            <a href="M_Products" class="<?php echo ($current_page == 'M_Products.php') ? 'active' : ''; ?>">
+                <i class="fa-solid fa-boxes-stacked"></i> Products
+            </a>
+            
+        </li>
+        <li>
+            <a href="M_Categories" class="<?php echo ($current_page == 'M_Categories.php') ? 'active' : ''; ?>">
+                <i class="fa-solid fa-list"></i> Categories
+            </a>
+        </li>
+        <li>
+            <a href="M_Feedbacks" class="<?php echo ($current_page == 'M_Feedbacks.php') ? 'active' : ''; ?>">
+                <i class="fa-solid fa-comments"></i> Feedbacks
+            </a>
+        </li>
+        <li>
+            <a href="M_Settings" class="<?php echo ($current_page == 'M_Settings.php') ? 'active' : ''; ?>">
+                <i class="fa-solid fa-gear"></i> Settings
+            </a>
+            
+        </li>
+        <li>
+            <a href="index">
+                <i class="fa-solid fa-house"></i> Back To Home
+            </a>
+        </li>
     </ul>
-
-    <div class="sidebar-footer">
-        <a href="logout.php" class="btn-logout">Logout</a>
-    </div>
 </aside>
-
-<!-- Dark Overlay for Mobile Drawer -->
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleAdminSidebar()"></div>
-
-<script>
-function toggleAdminSidebar() {
-    const sidebar = document.getElementById('adminSidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('active');
-}
-</script>

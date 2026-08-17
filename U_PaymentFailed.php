@@ -215,7 +215,7 @@ if ($orderId > 0) {
 <body>
 
   <nav class="lp-nav">
-    <a href="index.php" class="lp-logo">Lynx<span>Prise</span></a>
+    <a href="index" class="lp-logo">Lynx<span>Prise</span></a>
   </nav>
 
   <div class="lp-failed-wrapper">
@@ -242,11 +242,11 @@ if ($orderId > 0) {
 
       <div class="lp-action-group">
         <?php if ($orderId > 0): ?>
-          <a href="create_checkout.php?order_id=<?= $orderId ?>" class="btn-retry">Try Payment Again (QR Ph)</a>
+          <a href="create_checkout?order_id=<?= $orderId ?>" class="btn-retry">Try Payment Again (QR Ph)</a>
         <?php else: ?>
-          <a href="U_OrderPage.php" class="btn-retry">Return to Order Page</a>
+          <a href="U_OrderPage" class="btn-retry">Return to Order Page</a>
         <?php endif; ?>
-        <a href="index.php" class="btn-secondary">← Cancel and Return to Home</a>
+        <a href="index" class="btn-secondary">← Cancel and Return to Home</a>
       </div>
     </div>
   </div>

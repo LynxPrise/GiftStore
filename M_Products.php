@@ -8,6 +8,8 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
 }
 
 include 'U_db.php';
+include 'M_Header.php';
+include 'M_Sidebar.php';
 
 $message = '';
 $messageType = '';
@@ -457,7 +459,7 @@ $products = $pdo->query($sql)->fetchAll();
 </head>
 <body>
 
-    <nav class="lp-nav">
+    <!-- <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
         <button class="nav-toggle" onclick="toggleNav()" aria-label="Toggle Navigation">☰</button>
         <div class="lp-nav-menu" id="navMenu">
@@ -471,7 +473,12 @@ $products = $pdo->query($sql)->fetchAll();
             </ul>
             <a href="U_Logout.php" class="btn-logout">Logout</a>
         </div>
-    </nav>
+    </nav> -->
+
+
+
+
+<main class="main-workspace">
 
     <div class="container">
         <div class="header-actions">
@@ -707,5 +714,6 @@ $products = $pdo->query($sql)->fetchAll();
             }
         }
     </script>
+    </main>
 </body>
 </html>

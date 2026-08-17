@@ -8,6 +8,8 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
 }
 
 include 'U_db.php';
+include 'M_Header.php';
+include 'M_Sidebar.php';
 
 $current_date = date('Y-m-d');
 $tomorrow_date = date('Y-m-d', strtotime('+1 day'));
@@ -377,8 +379,9 @@ function renderOrderRows($orders_list) {
     </style>
 </head>
 <body>
+    
     <!-- Navigation Bar -->
-    <nav class="lp-nav">
+    <!-- <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
         <button class="mobile-menu-toggle" id="menuToggle" aria-label="Toggle Navigation">&#9776;</button>
         <div class="lp-nav-menu" id="navMenu">
@@ -392,7 +395,11 @@ function renderOrderRows($orders_list) {
             </ul>
             <a href="U_Logout.php" class="btn-nav">Logout</a>
         </div>
-    </nav>
+    </nav> -->
+<main class="main-workspace">
+    
+
+    <!-- Your KPI Cards & Tables Here -->
 
     <div class="page-wrapper">
         <!-- ANALYTICS CONTAINER -->
@@ -567,9 +574,9 @@ function renderOrderRows($orders_list) {
         });
 
         // Mobile Menu Toggle
-        const menuToggle = document.getElementById('menuToggle');
-        const navMenu = document.getElementById('navMenu');
-        menuToggle.addEventListener('click', () => { navMenu.classList.toggle('active'); });
+        // const menuToggle = document.getElementById('menuToggle');
+        // const navMenu = document.getElementById('navMenu');
+        // menuToggle.addEventListener('click', () => { navMenu.classList.toggle('active'); });
 
         function openModal(orderId) {
             var modal = document.getElementById("orderModal");
@@ -983,5 +990,13 @@ function renderOrderRows($orders_list) {
             }
         }
     </script>
+    </main>
+
+  
 </body>
 </html>
+
+  <?php 
+// 4. Include Footer Component
+include 'M_Footer.php'; 
+?>

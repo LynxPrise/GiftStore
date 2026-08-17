@@ -158,9 +158,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
     // Redirect based on selected payment method
     if ($mode_of_payment === 1) {
-      header("Location: create_checkout.php?order_id=" . $last_id);
+      header("Location: create_checkout?order_id=" . $last_id);
     } else {
-      header("Location: U_ThankYou.php?order_id=" . $last_id);
+      header("Location: U_ThankYou?order_id=" . $last_id);
     }
     exit;
 
@@ -430,11 +430,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
   <nav class="lp-nav">
     <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
     <ul class="lp-nav-links">
-      <li><a href="index.php#categories">Categories</a></li>
-      <li><a href="index.php#testimonials">Feedbacks</a></li>
-      <li><a href="U_OrderPage.php">Order</a></li>
+      <li><a href="index#categories">Categories</a></li>
+      <li><a href="index#testimonials">Feedbacks</a></li>
+      <li><a href="U_OrderPage">Order</a></li>
     </ul>
-    <a href="index.php#how-it-works" class="btn-nav">How this works</a>
+    <a href="index#how-it-works" class="btn-nav">How this works</a>
   </nav>
 
   <main class="lp-wrapper">
@@ -584,7 +584,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     ?>
 
     <!-- Main Order Form -->
-    <form class="lp-order-form" id="checkout-section" method="POST" action="U_OrderPage.php">
+    <form class="lp-order-form" id="checkout-section" method="POST" action="U_OrderPage">
       
       <input type="hidden" name="user_id" value="<?= $_SESSION['user_id'] ?? '' ?>" />
       <input type="hidden" name="products_id" id="form_products_id" value="" />

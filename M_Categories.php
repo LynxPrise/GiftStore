@@ -9,6 +9,8 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_email'])) {
 
 // Include database connection (adjust path/filename if needed)
 require_once 'U_db.php'; 
+include 'M_Header.php';
+include 'M_Sidebar.php';
 
 $message = "";
 $message_type = "";
@@ -535,7 +537,7 @@ try {
 </head>
 <body>
     <!-- Navigation Bar -->
-    <nav class="lp-nav">
+    <!-- <nav class="lp-nav">
         <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
         <button class="mobile-menu-toggle" id="menuToggle" aria-label="Toggle Navigation">&#9776;</button>
         <div class="lp-nav-menu" id="navMenu">
@@ -549,7 +551,9 @@ try {
             </ul>
             <a href="U_Logout.php" class="btn-nav">Logout</a>
         </div>
-    </nav>
+    </nav> -->
+<main class="main-workspace">
+    
 
   <div class="admin-container">
     <div class="main-card">
@@ -691,11 +695,11 @@ try {
 
   <script>
     // Mobile navigation toggle
-    const menuToggle = document.getElementById('menuToggle');
-    const navMenu = document.getElementById('navMenu');
-    menuToggle.addEventListener('click', () => {
-      navMenu.classList.toggle('active');
-    });
+    // const menuToggle = document.getElementById('menuToggle');
+    // const navMenu = document.getElementById('navMenu');
+    // menuToggle.addEventListener('click', () => {
+    //   navMenu.classList.toggle('active');
+    // });
 
     // Client-side Category Search Filtering
     function filterCategories() {
@@ -748,5 +752,12 @@ try {
       }
     }
   </script>
+  </main>
+
+<?php 
+// 4. Include Footer Component
+include 'M_Footer.php'; 
+?>
+
 </body>
 </html>
