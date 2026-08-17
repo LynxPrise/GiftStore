@@ -423,6 +423,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       .lp-modal-footer { flex-direction: column; align-items: stretch; text-align: center; }
       .modal-checkout-btn { justify-content: center; }
     }
+
+    /* Mobile-specific adjustments to fit narrow screens comfortably */
+@media (max-width: 480px) {
+    .payment-selection-group {
+        gap: 6px;
+    }
+
+    .payment-option-card {
+        padding: 8px 6px; /* Reduced padding for extra breathing room */
+    }
+
+    .payment-title {
+        font-size: 11px;
+    }
+
+    .payment-desc {
+        font-size: 9px;
+    }
+}
+
   </style>
 </head>
 <body>
@@ -712,7 +732,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             <div id="pickup-map" style="width:100%; height:220px; border-radius:var(--radius-md); border:1px solid var(--gold-border);"></div>
             <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
               <div id="pickup-coords" style="font-size:13px; color:var(--text-muted);">Lat: - , Lng: -</div>
-              <a id="open-pickup-google" class="btn-nav" href="#" target="_blank" rel="noopener noreferrer">Open Maps</a>
+              <a id="open-pickup-google" class="btn-nav" href="#" target="_blank" rel="noopener noreferrer" style="font-size: 12px; padding: 4px 10px; display: inline-block;">Open Maps</a>
             </div>
 
             
