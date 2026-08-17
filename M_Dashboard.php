@@ -621,6 +621,25 @@ function renderOrderRows($orders_list) {
                             directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(STORE_ADDRESS)}&destination=${encodedAddr}&travelmode=driving`;
                         }
 
+
+                        // --- PAYMENT FORMATTING ---
+                        // Map integer payment modes to human-readable names
+                        const paymentModes = {
+                            '1': 'GCash / Online Payment',
+                            '0': 'Cash on Delivery / Pickup'
+                        };
+                        const displayPaymentMode = paymentModes[String(o.mode_of_payment)] || o.mode_of_payment || 'N/A';
+
+                        // Format payment status and apply dynamic badge styling
+                        const rawPaymentStatus = String(o.payment_status || 'PENDING').trim().toUpperCase();
+                        let paymentBadgeStyle = 'background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba;'; // Default/PENDING (Yellow)
+
+                        if (rawPaymentStatus === 'PAID' || rawPaymentStatus === 'COMPLETED') {
+                            paymentBadgeStyle = 'background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;'; // PAID (Green)
+                        } else if (rawPaymentStatus === 'CANCELLED' || rawPaymentStatus === 'FAILED') {
+                            paymentBadgeStyle = 'background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;'; // CANCELLED (Red)
+                        }
+
                         document.getElementById('download-receipt-btn').onclick = function() {
                             downloadReceipt(o, isDelivery, recipientName, recipientContact, displayAddress, cleanCardMessage);
                         };
@@ -635,7 +654,15 @@ function renderOrderRows($orders_list) {
                                 <p class="full-width"><strong>Order Type:</strong> <span style="color:#d81b60; font-weight:bold;">${isDelivery ? 'Delivery' : 'Pickup'}</span></p>
                                 <p><strong>Customer Name:</strong> ${o.full_name || 'N/A'}</p>
                                 <p><strong>Customer Phone:</strong> ${o.phone_number || 'N/A'}</p>
-                               
+
+                                <hr class="full-width">
+                                <p><strong>Payment Method:</strong> ${displayPaymentMode}</p>
+                                <p><strong>Payment Status:</strong> 
+                                    <span style="padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; ${paymentBadgeStyle}">
+                                        ${rawPaymentStatus}
+                                    </span>
+                                </p>
+
                                 <hr class="full-width">
                                 <p><strong>Product:</strong> ${o.product_name || 'N/A'}</p>
                                 <p><strong>Price:</strong> ₱${o.price || '0.00'}</p>
