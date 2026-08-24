@@ -6,9 +6,9 @@ require_once 'U_db.php';
 header('Content-Type: application/json');
 
 // --- PayMongo keys ---
-define('PAYMONGO_SECRET_KEY', $_ENV['PAYMONGO_SECRET_KEY'] ?? getenv('PAYMONGO_SECRET_KEY'));
-define('PAYMONGO_PUBLIC_KEY', $_ENV['PAYMONGO_PUBLIC_KEY'] ?? getenv('PAYMONGO_PUBLIC_KEY'));
-define('PAYMONGO_WEBHOOK_SECRET', $_ENV['PAYMONGO_WEBHOOK_SECRET'] ?? getenv('PAYMONGO_WEBHOOK_SECRET'));
+// define('PAYMONGO_SECRET_KEY', $_ENV['PAYMONGO_SECRET_KEY'] ?? getenv('PAYMONGO_SECRET_KEY'));
+// define('PAYMONGO_PUBLIC_KEY', $_ENV['PAYMONGO_PUBLIC_KEY'] ?? getenv('PAYMONGO_PUBLIC_KEY'));
+// define('PAYMONGO_WEBHOOK_SECRET', $_ENV['PAYMONGO_WEBHOOK_SECRET'] ?? getenv('PAYMONGO_WEBHOOK_SECRET'));
 
 
 
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['order_id'])) {
     $paymongoSecretKey = defined('PAYMONGO_SECRET_KEY') ? PAYMONGO_SECRET_KEY : '';
     if (empty($paymongoSecretKey)) {
         header('Content-Type: text/html; charset=utf-8');
-        echo '<h2>PayMongo not configured</h2><p>Please set your PayMongo secret key in create_checkout.php to enable online payments.</p>';
+        echo '<h2>PayMongo not configured</h2><p>Please set your PayMongo secret key in create_checkout to enable online payments.</p>';
         exit;
     }
 
@@ -65,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['order_id'])) {
                         'quantity'    => $quantity,
                     ]
                 ],
-                'success_url' => 'http://Lynxprise/U_ThankYou.php?order_id=' . $orderId . '&payment=success',
-'cancel_url'  => 'http://Lynxprise/U_PaymentFailed.php?order_id=' . $orderId . '&error=Payment+was+cancelled+or+declined',
+                'success_url' => 'http://Lynxprise/U_ThankYou?order_id=' . $orderId . '&payment=success',
+'cancel_url'  => 'http://Lynxprise/U_PaymentFailed?order_id=' . $orderId . '&error=Payment+was+cancelled+or+declined',
                 'description'   => "LynxPrise Order #" . $orderId,
                 'customer_email'=> $email
             ]
@@ -182,7 +182,7 @@ try {
         // --- CASH ON DELIVERY (COD) ---
         echo json_encode([
             'success'      => true,
-            'redirect_url' => "U_ThankYou.php?order_id=" . $orderId
+            'redirect_url' => "U_ThankYou?order_id=" . $orderId
         ]);
         exit;
 
@@ -209,8 +209,8 @@ try {
                             'quantity'    => $quantity,
                         ]
                     ],
-                    'success_url'   => "http://" . $_SERVER['HTTP_HOST'] . "/U_ThankYou.php?order_id=" . $orderId . "&payment=success",
-                    'cancel_url'    => "http://" . $_SERVER['HTTP_HOST'] . "/U_PaymentFailed.php?order_id=" . $orderId . "&error=Payment+was+cancelled+or+declined",
+                    'success_url'   => "http://" . $_SERVER['HTTP_HOST'] . "/U_ThankYou?order_id=" . $orderId . "&payment=success",
+                    'cancel_url'    => "http://" . $_SERVER['HTTP_HOST'] . "/U_PaymentFailed?order_id=" . $orderId . "&error=Payment+was+cancelled+or+declined",
                     'description'   => "LynxPrise Order #" . $orderId,
                     'customer_email'=> $email
 

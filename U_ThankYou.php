@@ -72,13 +72,18 @@ if ($orderId > 0) {
 if ($paymentStatusDisplay === 'PAID') {
     $thankYouDescription = "We have received your payment via QR Ph! To confirm your preparation slot and get real-time order updates, send us a quick message on Messenger below.";
 } else {
-    $thankYouDescription = "We have successfully received your order details! To confirm your preparation slot, receive your receipt, and track real-time updates, please send us a quick message on Messenger below.";
+    $thankYouDescription = "We have successfully received your order details! To confirm your preparation slot, and track real-time updates, please send us a quick message on Messenger below.";
 }
 
 // --------------------------------------------------------------------------
-// MESSENGER DEEP LINK CONFIGURATION
+// MESSENGER DEEP LINK CONFIGURATION WITH DIRECT RECEIPT LINK
 // --------------------------------------------------------------------------
 $pageId = "278284815370670"; 
+
+// Construct Receipt Link dynamically (Change domain when deploying live)
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+$domainName = $_SERVER['HTTP_HOST'];
+$receiptUrl = $protocol . $domainName . "/LynxPrise/view_receipt?id=" . $orderId;
 
 // Dynamic message pre-filled in Messenger chat box
 $rawMessage = "New Order Confirmation #" . ($orderId > 0 ? $orderId : 'N/A') . "\n\n"
@@ -87,6 +92,7 @@ $rawMessage = "New Order Confirmation #" . ($orderId > 0 ? $orderId : 'N/A') . "
             . "Payment Method: " . $paymentMethodText . "\n"
             . "Payment Status: " . $paymentStatusDisplay . "\n"
             . "Fulfillment: " . $fulfillmentType . "\n\n"
+            . "📄 View Online Receipt:\n" . $receiptUrl . "\n\n"
             . "Hi! I'm messaging to confirm my receipt and order details!";
 
 // Encodes the message string for URL
@@ -322,6 +328,15 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
       transform: translateY(-2px);
     }
 
+    .btn-receipt {
+      display: inline-block;
+      margin-top: 12px;
+      color: var(--accent-pink);
+      font-size: 14px;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+
     .btn-home {
       display: inline-block;
       color: var(--text-muted);
@@ -404,7 +419,7 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
 
       <div class="lp-messenger-box">
         <h4>Connect on Messenger for Receipts & Updates</h4>
-        <p>Click below to open Messenger. Your order details will automatically populate in your message box!</p>
+        <p>Click below to open Messenger. Your order details and receipt link will automatically populate in your message box!</p>
         <a href="<?= $messengerUrl ?>" target="_blank" class="btn-messenger">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.45 5.512 3.715 7.202V22l3.39-1.861c.928.257 1.91.396 2.895.396 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.09 12.445l-2.543-2.714-4.966 2.714 5.464-5.798 2.583 2.714 4.926-2.714-5.464 5.798z"/>
@@ -413,6 +428,10 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
         </a>
       </div>
 
+      <!-- <div>
+        <a href="view_receipt?id=<?= $orderId ?>" target="_blank" class="btn-receipt">📄 View / Print Official Receipt</a>
+      </div> -->
+      <br>
       <a href="index" class="btn-home">← Return to Home Page</a>
     </div>
   </div>
