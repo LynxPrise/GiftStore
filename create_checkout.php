@@ -65,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['order_id'])) {
                         'quantity'    => $quantity,
                     ]
                 ],
-                'success_url' => 'http://localhost/Lynxprise/U_ThankYou.php?order_id=' . $orderId . '&payment=success',
-'cancel_url'  => 'http://localhost/Lynxprise/U_PaymentFailed.php?order_id=' . $orderId . '&error=Payment+was+cancelled+or+declined',
+                'success_url' => 'http://Lynxprise/U_ThankYou.php?order_id=' . $orderId . '&payment=success',
+'cancel_url'  => 'http://Lynxprise/U_PaymentFailed.php?order_id=' . $orderId . '&error=Payment+was+cancelled+or+declined',
                 'description'   => "LynxPrise Order #" . $orderId,
                 'customer_email'=> $email
             ]
