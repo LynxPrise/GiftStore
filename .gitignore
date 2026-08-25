@@ -1,1 +1,8 @@
 .env
+
+# Ignore all files and subfolders inside uploads
+uploads/**
+
+# Keep .gitkeep files so folder structures exist on GitHub/live server
+!uploads/**/.gitkeep
+!uploads/.gitkeep
