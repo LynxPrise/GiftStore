@@ -52,26 +52,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['order_id'])) {
         exit;
     }
 
-    $payload = [
-        'data' => [
-            'attributes' => [
-                'payment_method_types' => ['qrph', 'gcash', 'paymaya'], // Added 'qrph' as required
-                'line_items' => [
-                    [
-                        'currency'    => 'PHP',
-                        'amount'      => $totalAmountCents,
-                        'description' => $productName,
-                        'name'        => $productName,
-                        'quantity'    => $quantity,
-                    ]
-                ],
-                'success_url' => '/U_ThankYou?order_id=' . $orderId . '&payment=success',
-'cancel_url'  => '/U_PaymentFailed?order_id=' . $orderId . '&error=Payment+was+cancelled+or+declined',
-                'description'   => "LynxPrise Order #" . $orderId,
-                'customer_email'=> $email
-            ]
+
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+$baseUrl  = $protocol . $_SERVER['HTTP_HOST'];
+
+$payload = [
+    'data' => [
+        'attributes' => [
+            'payment_method_types' => ['qrph', 'gcash', 'paymaya'],
+            'line_items' => [
+                [
+                    'currency'    => 'PHP',
+                    'amount'      => $totalAmountCents,
+                    'description' => $productName,
+                    'name'        => $productName,
+                    'quantity'    => $quantity,
+                ]
+            ],
+            'success_url'   => $baseUrl . "/U_ThankYou?order_id=" . $orderId . "&payment=success",
+            'cancel_url'    => $baseUrl . "/U_PaymentFailed?order_id=" . $orderId . "&error=Payment+was+cancelled+or+declined",
+            'description'   => "LynxPrise Order #" . $orderId,
+            'customer_email'=> $email
         ]
-    ];
+    ]
+];
 
     $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -196,10 +200,13 @@ try {
             exit;
         }
 
+       $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+        $baseUrl  = $protocol . $_SERVER['HTTP_HOST'];
+
         $payload = [
             'data' => [
                 'attributes' => [
-                    'payment_method_types' => ['qrph', 'gcash', 'paymaya'], // Added 'qrph' as required
+                    'payment_method_types' => ['qrph', 'gcash', 'paymaya'],
                     'line_items' => [
                         [
                             'currency'    => 'PHP',
@@ -209,16 +216,10 @@ try {
                             'quantity'    => $quantity,
                         ]
                     ],
-                    'success_url'   => "http://" . $_SERVER['HTTP_HOST'] . "/U_ThankYou?order_id=" . $orderId . "&payment=success",
-                    'cancel_url'    => "http://" . $_SERVER['HTTP_HOST'] . "/U_PaymentFailed?order_id=" . $orderId . "&error=Payment+was+cancelled+or+declined",
+                    'success_url'   => $baseUrl . "/U_ThankYou?order_id=" . $orderId . "&payment=success",
+                    'cancel_url'    => $baseUrl . "/U_PaymentFailed?order_id=" . $orderId . "&error=Payment+was+cancelled+or+declined",
                     'description'   => "LynxPrise Order #" . $orderId,
                     'customer_email'=> $email
-
-//                     'success_url'   => "http://" . $_SERVER['HTTP_HOST'] . "/Lynxprise/U_ThankYou.php?order_id=" . $orderId . "&payment=success",
-// 'cancel_url'    => "http://" . $_SERVER['HTTP_HOST'] . "/Lynxprise/U_PaymentFailed.php?order_id=" . $orderId . "&error=Payment+was+cancelled+or+declined",
-// 'description'   => "LynxPrise Order #" . $orderId,
-// 'customer_email'=> $email
-
                 ]
             ]
         ];
