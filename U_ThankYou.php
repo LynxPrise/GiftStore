@@ -83,7 +83,7 @@ $pageId = "278284815370670";
 // Construct Receipt Link dynamically (Change domain when deploying live)
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
 $domainName = $_SERVER['HTTP_HOST'];
-$receiptUrl = $protocol . $domainName . "/LynxPrise/view_receipt?id=" . $orderId;
+$receiptUrl = $protocol . $domainName . "/view_receipt?id=" . $orderId;
 
 // Dynamic message pre-filled in Messenger chat box
 $rawMessage = "New Order Confirmation #" . ($orderId > 0 ? $orderId : 'N/A') . "\n\n"
