@@ -122,7 +122,7 @@ $price = number_format((float)($order['price'] ?? 0), 2);
 
 <div class="receipt-card">
     <div class="logo">Lynx<span>Prise</span></div>
-    <div class="subtitle">Brgy. Malitbogay, Javier, Leyte<br>Official Sales Receipt</div>
+    <div class="subtitle">Brgy. Malitbogay, Javier, Leyte<br>Official Sales Receipt Lanelyn Cutie</div>
 
     <div class="row"><span class="label">Receipt #</span><span class="value"><?php echo htmlspecialchars($order['id']); ?></span></div>
     <div class="row"><span class="label">Date</span><span class="value"><?php echo date('M d, Y', strtotime($order['date_of_pickup'] ?? 'now')); ?></span></div>
