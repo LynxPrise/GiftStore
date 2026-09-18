@@ -376,9 +376,9 @@ $messengerUrl = "https://m.me/" . $pageId . "?text=" . $encodedMessage;
     <ul class="lp-nav-links">
       <li><a href="index#categories">Categories</a></li>
       <li><a href="index#testimonials">Feedbacks</a></li>
-      <li><a href="U_OrderPage">Order</a></li>
+      <li><a href="u_order">Order</a></li>
     </ul>
-    <a href="U_OrderPage" class="btn-nav">Order Again!</a>
+    <a href="u_order" class="btn-nav">Order Again!</a>
   </nav>
 
   <div class="lp-thankyou-wrapper">

@@ -642,9 +642,9 @@ try {
     <ul class="lp-nav-links">
       <li><a href="#categories">Categories</a></li>
       <li><a href="#how-it-works">How it works</a></li>
-      <li><a href="U_OrderPage">Order</a></li>
+      <li><a href="u_order">Order</a></li>
     </ul>
-    <a href="U_OrderPage" class="btn-nav">Order now</a>
+    <a href="u_order" class="btn-nav">Order now</a>
   </nav>
 
   <main>
@@ -664,7 +664,7 @@ try {
             </p>
             <div class="lp-hero-actions">
               <a href="#categories" class="btn-hero-primary">Browse Surprise Packages</a>
-              <a href="U_OrderPage" class="btn-hero-secondary">Customize Your Order</a>
+              <a href="u_order" class="btn-hero-secondary">Customize Your Order</a>
             </div>
             <div class="lp-hero-trust">
               <div class="lp-hero-trust-row">
@@ -716,7 +716,7 @@ try {
               $catImg = htmlspecialchars(!empty($catImgRaw) ? $catImgRaw : 'Assets/Images/placeholder.jpg');
             ?>
               <!-- <a href="U_OrderPage" class="lp-category-card-link"> -->
-                    <a href="U_OrderPage?category=<?= urlencode($cat['category_id'] ?? $cat['id']) ?>" class="lp-category-card-link">
+                    <a href="u_order?category=<?= urlencode($cat['category_id'] ?? $cat['id']) ?>" class="lp-category-card-link">
       <div class="lp-category-card">
         <div class="lp-cat-image-wrap">
           <img src="<?= $catImg ?>" alt="<?= $catName ?>">
@@ -761,7 +761,7 @@ try {
       </div>
 
       <div class="lp-cta-wrapper">
-        <a href="U_OrderPage" class="btn-hero-primary">Start Your Order</a>
+        <a href="u_order" class="btn-hero-primary">Start Your Order</a>
       </div>
     </div>
   </section>

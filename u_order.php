@@ -2,6 +2,7 @@
 session_start();
 
 require_once 'U_db.php'; // Includes $pdo from U_db.php
+$is_checkout_page = basename($_SERVER['PHP_SELF']) === 'checkout.php';
 
 $order_status_message = "";
 
@@ -176,11 +177,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Complete Your Order | LynxPrise</title>
+  <title><?= $is_checkout_page ? 'Checkout' : 'Choose Your Items' ?> | LynxPrise</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sacramento&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            blush: '#fdeee8',
+            rose: '#d9658b',
+            ink: '#3b2219',
+            sand: '#e8c3b0'
+          },
+          fontFamily: {
+            display: ['Playfair Display', 'serif'],
+            sans: ['Plus Jakarta Sans', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
 
   <style>
     :root {
@@ -208,6 +228,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     .lp-nav-links { display: flex; gap: 30px; list-style: none; }
     .lp-nav-links a { text-decoration: none; color: var(--text-dark); font-weight: 500; font-size: 15px; transition: color 0.2s; }
     .lp-nav-links a:hover { color: var(--accent-pink); }
+
+    .mobile-menu-button { display: none; }
+    .mobile-menu-panel { display: none; }
 
     .btn-nav { background-color: var(--accent-pink); color: #fff; padding: 10px 24px; border-radius: var(--radius-btn); text-decoration: none; font-weight: 600; font-size: 14px; transition: background-color 0.2s; }
     .btn-nav:hover { background-color: var(--accent-pink-hover); }
@@ -423,10 +446,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     }
 
     @media (max-width: 640px) {
+      .lp-nav { padding: 10px 4%; gap: 8px; }
       .lp-nav-links { display: none; }
-      .lp-nav { padding: 12px 4%; }
       .lp-grid-2 { grid-template-columns: 1fr; }
-      .lp-order-form { padding: 24px 18px; }
+      .lp-order-form { padding: 22px 14px; gap: 22px; }
+      .lp-wrapper { padding: 26px 12px 44px; }
+      .lp-order-title { font-size: 32px; line-height: 1.15; }
+      .lp-order-subtitle { font-size: 13px; line-height: 1.5; }
+      .lp-logo { font-size: 20px; white-space: nowrap; }
+      .lp-logo span { font-size: 28px; }
+      .lp-nav > .flex .btn-nav { display: none; }
+      #cart-button { padding: 9px 10px; font-size: 12px; }
+      .mobile-menu-button { display: inline-flex; flex: 0 0 auto; width: 40px; height: 40px; align-items: center; justify-content: center; border: 1px solid var(--gold-border); border-radius: 12px; background: #fff; color: var(--text-dark); cursor: pointer; }
+      .mobile-menu-panel { position: fixed; inset: 0; z-index: 2100; background: rgba(59, 34, 25, 0.45); }
+      .mobile-menu-panel.open { display: block; }
+      .mobile-menu-content { width: min(82vw, 320px); height: 100%; padding: 74px 24px 24px; background: var(--bg-cream); box-shadow: 8px 0 24px rgba(59, 34, 25, 0.16); }
+      .mobile-menu-content a { display: block; padding: 14px 0; border-bottom: 1px solid var(--bg-soft-pink); color: var(--text-dark); text-decoration: none; font-weight: 600; }
+      .mobile-menu-close { position: absolute; top: 18px; left: 24px; border: 0; background: transparent; color: var(--text-dark); font-size: 28px; cursor: pointer; }
+      .lp-products-heading { font-size: 26px; }
+      .lp-legend { font-size: 20px; }
+      .lp-summary-box { padding: 12px; }
+      .cart-item-row { align-items: flex-start; gap: 8px; font-size: 13px; }
+      .payment-option-card { min-width: 0; padding: 9px 7px; }
+      .payment-title, .payment-desc { white-space: normal; overflow-wrap: anywhere; }
+      .payment-title { font-size: 11px; }
+      .payment-desc { font-size: 9px; }
+      #delivery-fields > .lp-grid-2, #delivery-fields .lp-field > div { grid-template-columns: 1fr; display: grid; }
+      #delivery-fields .lp-field > div { gap: 8px !important; }
+      #address + button { min-height: 44px; }
+      #custom-date-display, #selected_time_val { min-height: 48px; }
       .lp-modal-footer { flex-direction: column; align-items: stretch; text-align: center; }
       .modal-checkout-btn { justify-content: center; }
     }
@@ -441,51 +489,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         gap: 6px;
     }
 
-    .payment-option-card {
-        padding: 8px 6px; /* Compact padding for small screens */
-    }
-
-    .payment-title {
-        font-size: 11px;
-        white-space: nowrap; /* Prevents title text wrapping */
-    }
-
-    .payment-desc {
-        font-size: 9px;
-        white-space: nowrap; /* Prevents description text wrapping */
-    }
+    .payment-option-card { padding: 8px 6px; }
+    .payment-title { font-size: 11px; }
+    .payment-desc { font-size: 9px; }
 }
 
   </style>
 </head>
-<body>
+<body class="min-h-screen bg-blush text-ink antialiased">
 
-  <nav class="lp-nav">
-    <a href="#" class="lp-logo">Lynx<span>Prise</span></a>
-    <ul class="lp-nav-links">
+  <nav class="lp-nav sticky top-0 z-[1000] flex w-full items-center justify-between bg-[#fff9f6]/95 px-[4%] py-3 shadow-sm backdrop-blur sm:px-[5%] sm:py-[18px]">
+    <div class="flex items-center gap-3">
+      <button type="button" class="mobile-menu-button md:hidden" onclick="toggleMobileMenu(true)" aria-label="Open navigation menu" aria-controls="mobile-menu-panel" aria-expanded="false">☰</button>
+      <a href="#" class="lp-logo font-display text-2xl font-bold text-ink no-underline">Lynx<span class="ml-0.5 font-['Sacramento'] text-rose">Prise</span></a>
+    </div>
+
+    <ul class="lp-nav-links hidden list-none gap-7 md:flex">
       <li><a href="index#categories">Categories</a></li>
       <li><a href="index#testimonials">Feedbacks</a></li>
       <li><a href="U_OrderPage">Order</a></li>
+      <li><a href="index#how-it-works">How this works</a></li>
+      <!-- <li><a href="track_order.php">📍 Track Order</a></li> -->
     </ul>
-    <a href="index#how-it-works" class="btn-nav">How this works</a>
+
+    <div class="flex items-center gap-2">
+      <?php if (!$is_checkout_page): ?>
+        <button type="button" id="cart-button" onclick="openCartModal()" class="relative rounded-full border border-sand bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:border-rose" aria-label="Open cart">
+          🛒 Cart <span id="cart-count" class="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-rose px-1.5 text-xs text-white">0</span>
+        </button>
+      <?php endif; ?>
+
+      <?php if ($is_checkout_page): ?>
+        <a href="u_order" id="cart-button" class="relative rounded-full border border-sand bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:border-rose no-underline inline-flex items-center" aria-label="Order Items">← Order Items</a>
+      <?php endif; ?>
+      
+      
+      <a href="track_order" class="btn-nav rounded-full bg-rose px-4 py-2.5 text-sm font-semibold text-white no-underline transition hover:bg-[#c45075]">📍 Track Order</a>
+    </div>
   </nav>
 
-  <main class="lp-wrapper">
-    <div class="lp-order-header">
-      <h1 class="lp-order-title">Complete Your LynxPrise Order</h1>
-      <p class="lp-order-subtitle">Select items across categories or specify custom gift items below.</p>
+  <div id="mobile-menu-panel" class="mobile-menu-panel" onclick="if (event.target === this) toggleMobileMenu(false)">
+    <div class="mobile-menu-content">
+      <button type="button" class="mobile-menu-close" onclick="toggleMobileMenu(false)" aria-label="Close navigation menu">&times;</button>
+      <a href="index#categories" onclick="toggleMobileMenu(false)">Categories</a>
+      <a href="index#testimonials" onclick="toggleMobileMenu(false)">Feedbacks</a>
+      <a href="index#how-it-works" onclick="toggleMobileMenu(false)">How this works</a>
+      
+
+      <a href="track_order" onclick="toggleMobileMenu(false)">📍 Track Order</a>
+      <?php if (!$is_checkout_page): ?><a href="checkout" onclick="toggleMobileMenu(false)">🛒 Checkout</a><?php endif; ?>
+        
+      
+    </div>
+  </div>
+
+  <main class="lp-wrapper mx-auto max-w-5xl px-4 py-10 sm:px-5 sm:pb-16">
+    <div class="lp-order-header mb-7 text-center">
+      <h1 class="lp-order-title font-display text-4xl text-ink sm:text-[42px]"><?= $is_checkout_page ? 'Complete Your Order' : 'Choose Your LynxPrise Items' ?></h1>
+      <p class="lp-order-subtitle mt-2 text-sm text-[#785a50] sm:text-base"><?= $is_checkout_page ? 'Review your cart and provide the details needed to complete your order.' : 'Select items across categories, then open your cart to continue.' ?></p>
     </div>
 
     <?= $order_status_message ?>
 
+    <?php if (!$is_checkout_page): ?>
     <!-- Catalog Section -->
-    <section class="lp-category-section" id="categories">
-      <div class="lp-search-wrap">
+    <section class="lp-category-section mb-7" id="categories">
+      <div class="lp-search-wrap relative mb-5">
         <span class="lp-search-icon" aria-hidden="true">⌕</span>
-        <input type="search" class="lp-search-input" id="product-search" placeholder="Search products..." oninput="filterProducts()" aria-label="Search products" />
+        <input type="search" class="lp-search-input w-full rounded-full border border-sand bg-white py-3.5 pl-12 pr-5 text-sm text-ink outline-none transition focus:border-rose focus:ring-4 focus:ring-rose/10" id="product-search" placeholder="Search products..." oninput="filterProducts()" aria-label="Search products" />
       </div>
-      <div class="lp-category-grid">
-        <div class="lp-cat-card active" data-category-filter="all" onclick="selectCategory('all', this)">
+
+      <div class="lp-category-grid flex gap-3 overflow-x-auto px-0.5 pb-3 [scroll-snap-type:x_mandatory]">
+        <div class="lp-cat-card active flex shrink-0 cursor-pointer items-center gap-2.5 rounded-2xl border border-rose bg-[#fffbf9] p-3 text-left shadow-sm transition hover:-translate-y-0.5 sm:basis-[190px]" data-category-filter="all" onclick="selectCategory('all', this)">
           <div class="lp-cat-img" style="display:flex;align-items:center;justify-content:center;background:var(--bg-soft-pink);font-size:22px;">✦</div>
           <div><h3 class="lp-cat-title">All Products</h3><p class="lp-cat-desc">View everything</p></div>
         </div>
@@ -497,7 +572,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             $catImgRaw = $cat['categoryImage'] ?? ($cat['categoryimage'] ?? '');
             $catImg = htmlspecialchars(!empty($catImgRaw) ? $catImgRaw : 'Assets/Images/placeholder.jpg');
           ?>
-            <div class="lp-cat-card" data-category-filter="cat-<?= $catId ?>" onclick="selectCategory('cat-<?= $catId ?>', this)">
+            <div class="lp-cat-card flex shrink-0 cursor-pointer items-center gap-2.5 rounded-2xl border border-sand bg-[#fffbf9] p-3 text-left shadow-sm transition hover:-translate-y-0.5 sm:basis-[190px]" data-category-filter="cat-<?= $catId ?>" onclick="selectCategory('cat-<?= $catId ?>', this)">
               <img src="<?= $catImg ?>" alt="<?= $catName ?>" class="lp-cat-img" />
               <h3 class="lp-cat-title"><?= $catName ?></h3>
               <?php if ($catDesc !== ''): ?>
@@ -511,9 +586,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       </div>
     </section>
 
-    <section class="lp-products-section" id="products">
-      <h2 class="lp-products-heading">All Products</h2>
-      <div class="lp-product-grid lp-inline-product-grid" id="inline-product-grid">
+    <!-- Cart Modal -->
+    <div id="cart-modal" class="fixed inset-0 z-[2200] hidden items-center justify-center bg-ink/60 p-4 backdrop-blur-sm" onclick="if (event.target === this) closeCartModal()">
+      <div class="w-full max-w-lg rounded-3xl border border-sand bg-[#fff9f6] p-6 shadow-2xl">
+        <div class="mb-4 flex items-center justify-between border-b border-sand pb-3">
+          <h2 class="font-display text-2xl font-semibold text-ink">Your Cart</h2>
+          <button type="button" onclick="closeCartModal()" class="text-2xl text-ink" aria-label="Close cart">&times;</button>
+        </div>
+        <div id="cart-modal-items" class="max-h-[55vh] space-y-2 overflow-y-auto"></div>
+        <div class="mt-5 flex items-center justify-between border-t border-sand pt-4">
+          <strong>Total</strong>
+          <span id="cart-modal-total" class="text-xl font-bold text-rose">₱0.00</span>
+        </div>
+        <button type="button" onclick="goToCheckout()" class="mt-4 w-full rounded-full bg-rose p-3 font-bold text-white transition hover:bg-[#c45075]">Go to Checkout</button>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!$is_checkout_page): ?>
+<section class="lp-products-section mb-10" id="products">
+    <h2 class="lp-products-heading mb-4 font-display text-3xl">All Products</h2>
+    <div class="lp-product-grid lp-inline-product-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" id="inline-product-grid">
         <?php
         $allProducts = [];
         foreach ($categories as $index => $cat) {
@@ -539,21 +632,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             $isLongDesc = strlen($desc) > 80;
             $shortDesc = $isLongDesc ? substr($desc, 0, 80) . '...' : $desc;
         ?>
-          <div class="lp-product-card inline-product-card" data-category="<?= $productCategoryKey ?>" data-product-name="<?= strtolower($name) ?>">
+          <div class="lp-product-card inline-product-card flex flex-col justify-between rounded-2xl border border-sand bg-white p-4 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md" data-category="<?= $productCategoryKey ?>" data-product-name="<?= strtolower($name) ?>">
             <div id="toast-<?= $id ?>" class="item-added-toast">✓ Added!</div>
             <div>
-              <img src="<?= $img ?>" alt="<?= $name ?>" onclick="viewFullscreenImage('<?= $img ?>')" title="Click to view full image" />
-              <h4><?= $name ?></h4>
+              <img class="mb-2.5 h-40 w-full cursor-pointer rounded-xl object-cover transition hover:opacity-85" src="<?= $img ?>" alt="<?= $name ?>" onclick="viewFullscreenImage('<?= $img ?>')" title="Click to view full image" />
+              <h4 class="font-semibold text-ink"><?= $name ?></h4>
               <p style="color:var(--accent-pink); font-weight:700; font-size:16px;">₱<?= number_format($price, 2) ?></p>
               <?php if ($qty > 0): ?><span class="stock-badge stock-available">Available: <?= $qty ?></span><?php else: ?><span class="stock-badge stock-out">Out of Stock</span><?php endif; ?>
               <?php if ($desc !== ''): ?><div class="prod-desc"><span id="desc-short-<?= $id ?>"><?= htmlspecialchars($shortDesc) ?></span><?php if ($isLongDesc): ?><span id="desc-full-<?= $id ?>" style="display: none;"><?= htmlspecialchars($desc) ?></span><button type="button" class="see-more-btn" onclick="toggleDesc(<?= $id ?>)" id="see-btn-<?= $id ?>">see more</button><?php endif; ?></div><?php endif; ?>
             </div>
-            <button class="btn-add" onclick="addItemToOrder(<?= $id ?>, '<?= addslashes($name) ?>', <?= $price ?>, '<?= $img ?>', <?= $qty ?>)" <?= ($qty <= 0) ? 'disabled' : '' ?>><?= ($qty > 0) ? '+ Add Item' : 'Out of Stock' ?></button>
+            <button class="btn-add mt-2 w-full rounded-full border-0 bg-rose px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#c45075] disabled:cursor-not-allowed disabled:bg-gray-300" onclick="addItemToOrder(<?= $id ?>, '<?= addslashes($name) ?>', <?= $price ?>, '<?= $img ?>', <?= $qty ?>)" <?= ($qty <= 0) ? 'disabled' : '' ?>><?= ($qty > 0) ? '+ Add Item' : 'Out of Stock' ?></button>
           </div>
         <?php endforeach; endif; ?>
-      </div>
-      <p id="no-search-results" style="display:none; color:var(--text-muted); text-align:center; padding:20px;">No products match your search.</p>
-    </section>
+    </div>
+    <p id="no-search-results" style="display:none; color:var(--text-muted); text-align:center; padding:20px;">No products match your search.</p>
+</section>
+<?php endif; ?>
 
     <!-- Custom Pink Theme Alert Modal -->
     <div id="lp-alert-modal" class="lp-modal-overlay">
@@ -670,7 +764,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     ?>
 
     <!-- Main Order Form -->
-    <form class="lp-order-form" id="checkout-section" method="POST" action="U_OrderPage">
+    <form class="lp-order-form flex flex-col gap-7 rounded-3xl border border-sand bg-[#fffbf9] p-6 shadow-lg shadow-ink/5 sm:p-10" id="checkout-section" method="POST" action="u_order">
       
       <input type="hidden" name="user_id" value="<?= $_SESSION['user_id'] ?? '' ?>" />
       <input type="hidden" name="products_id" id="form_products_id" value="" />
@@ -679,31 +773,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       <input type="hidden" name="price" id="form_price" value="0.00" required />
 
       <!-- Step 1: Order Summary -->
-      <fieldset class="lp-fieldset">
-        <legend class="lp-legend">1. Order Items Summary</legend>
-        <div class="lp-summary-box">
-          <div id="cart-list-container">
-            <p style="color:var(--text-muted); font-size:14px;">No catalog items added yet. Click categories above to add items.</p>
-          </div>
-          <hr style="border:none; border-top: 1px dashed var(--gold-border); margin:12px 0;" />
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <strong>Calculated Total Amount:</strong>
-            <span id="summary-total-price" style="color: var(--accent-pink); font-weight:700; font-size:20px; margin-left:auto;">₱0.00</span>
-          </div>
-        </div>
-      </fieldset>
+      <fieldset id="order-summary-section" class="lp-fieldset flex flex-col gap-4 border-0">
+    <legend class="lp-legend w-full border-b border-blush pb-2 font-display text-2xl font-semibold text-ink">1. Order Items Summary</legend>
+    <div class="lp-summary-box rounded-2xl border border-dashed border-sand bg-[#fff9f6] p-4">
+      <div id="cart-list-container">
+        <p style="color:var(--text-muted); font-size:14px;">No catalog items added yet. Click categories above to add items.</p>
+      </div>
+      <hr style="border:none; border-top: 1px dashed var(--gold-border); margin:12px 0;" />
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>Calculated Total Amount:</strong>
+        <span id="summary-total-price" style="color: var(--accent-pink); font-weight:700; font-size:20px; margin-left:auto;">₱0.00</span>
+      </div>
+    </div>
+  </fieldset>
 
       <!-- Step 2: Customer Details -->
-      <fieldset class="lp-fieldset">
-        <legend class="lp-legend">2. Customer Details</legend>
-        <div class="lp-grid-2">
-          <div class="lp-field">
+      <fieldset class="lp-fieldset flex flex-col gap-4 border-0">
+        <legend class="lp-legend w-full border-b border-blush pb-2 font-display text-2xl font-semibold text-ink">2. Customer Details</legend>
+        <div class="lp-grid-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="lp-field flex flex-col gap-1.5">
             <label for="full_name">Your Full Name</label>
-            <input class="lp-input" id="full_name" name="full_name" required placeholder="Juan Dela Cruz" />
+            <input class="lp-input w-full rounded-2xl border border-sand bg-white px-4 py-3 text-sm outline-none transition focus:border-rose focus:ring-4 focus:ring-rose/10" id="full_name" name="full_name" required placeholder="Juan Dela Cruz" />
           </div>
-          <div class="lp-field">
+          <div class="lp-field flex flex-col gap-1.5">
             <label for="phone_number">Customer Contact Number</label>
-            <input class="lp-input" id="phone_number" name="phone_number" type="tel" required placeholder="09XX XXX XXXX" />
+            <input class="lp-input w-full rounded-2xl border border-sand bg-white px-4 py-3 text-sm outline-none transition focus:border-rose focus:ring-4 focus:ring-rose/10" id="phone_number" name="phone_number" type="tel" required placeholder="09XX XXX XXXX" />
           </div>
         </div>
 
@@ -717,29 +811,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       </fieldset>
 
       <!-- Step 3: Fulfillment & Options -->
-      <fieldset class="lp-fieldset">
-        <legend class="lp-legend">3. Fulfillment & Options</legend>
-        <div class="lp-grid-2">
-          <div class="lp-field">
+      <fieldset class="lp-fieldset flex flex-col gap-4 border-0">
+        <legend class="lp-legend w-full border-b border-blush pb-2 font-display text-2xl font-semibold text-ink">3. Fulfillment & Options</legend>
+        <div class="lp-grid-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="lp-field flex flex-col gap-1.5">
             <label for="mode_of_transpo">Fulfillment Option</label>
-            <select class="lp-select" id="mode_of_transpo" name="mode_of_transpo" onchange="toggleFulfillmentMode()" required>
+            <select class="lp-select w-full rounded-2xl border border-sand bg-white px-4 py-3 text-sm outline-none transition focus:border-rose focus:ring-4 focus:ring-rose/10" id="mode_of_transpo" name="mode_of_transpo" onchange="toggleFulfillmentMode()" required>
               <option value="1">Delivery (with minimal delivery fee)</option>
               <option value="2" selected>Store Pickup</option>
             </select>
           </div>
           
           <!-- Custom Calendar Picker Fields -->
-          <div class="lp-field">
+          <div class="lp-field flex flex-col gap-1.5">
             <label id="date-label">Preferred Pickup Date & Time</label>
             <div style="display: flex; gap: 8px;">
               <input type="hidden" name="selected_date_val" id="selected_date_val" required />
               
-              <div class="lp-input date-picker-trigger" id="custom-date-display" onclick="openPinkCalendar()" style="flex: 2;">
+              <div class="lp-input date-picker-trigger flex-2 flex items-center justify-between rounded-2xl border border-sand bg-white px-4 py-3 text-sm" id="custom-date-display" onclick="openPinkCalendar()" style="flex: 2;">
                 <span id="date-display-text" style="color: #999;">Select Date...</span>
                 <span>📅</span>
               </div>
 
-              <select class="lp-select" name="selected_time_val" id="selected_time_val" style="flex: 1;" required>
+              <select class="lp-select flex-1 rounded-2xl border border-sand bg-white px-4 py-3 text-sm outline-none" name="selected_time_val" id="selected_time_val" required>
                 <option value="08:00">08:00 AM</option>
                 <option value="09:00">09:00 AM</option>
                 <option value="10:00" selected>10:00 AM</option>
@@ -805,17 +899,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
           </div>
         </div>
 
-        <div class="lp-field">
+        <div class="lp-field flex flex-col gap-1.5">
           <label for="notes">Greeting Card Message / Special Instructions</label>
-          <textarea class="lp-textarea" id="notes" name="notes" rows="3" placeholder="Write any card message or specific request..."></textarea>
+          <textarea class="lp-textarea w-full rounded-2xl border border-sand bg-white px-4 py-3 text-sm outline-none transition focus:border-rose focus:ring-4 focus:ring-rose/10" id="notes" name="notes" rows="3" placeholder="Write any card message or specific request..."></textarea>
         </div>
 
         <!-- Hidden input to submit the payment value (0 = COD, 1 = PayMongo) -->
 <input type="hidden" name="mode_of_payment" id="mode_of_payment_input" value="0">
 
 <!-- Payment Options UI -->
-<div class="payment-selection-group">
-  <label class="payment-option-card active" id="card-cod" onclick="selectPaymentMethod(0)">
+<div class="payment-selection-group grid grid-cols-2 gap-2.5">
+  <label class="payment-option-card active cursor-pointer rounded-xl border-2 border-[#b84357] bg-[#fff0f3] p-3 transition hover:border-[#d17b88]" id="card-cod" onclick="selectPaymentMethod(0)">
     <input type="radio" name="payment_type" value="0" checked hidden>
     <div class="payment-info">
       <span class="payment-title">Cash on Delivery</span>
@@ -823,7 +917,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     </div>
   </label>
 
-  <label class="payment-option-card" id="card-paymongo" onclick="selectPaymentMethod(1)">
+  <label class="payment-option-card cursor-pointer rounded-xl border-2 border-[#ebd0d7] bg-white p-3 transition hover:border-[#d17b88]" id="card-paymongo" onclick="selectPaymentMethod(1)">
     <input type="radio" name="payment_type" value="1" hidden>
     <div class="payment-info">
       <span class="payment-title">Online Payment</span>
@@ -854,7 +948,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
       </fieldset>
 
-      <button type="submit" name="place_order" class="btn-submit">Place Your Order</button>
+      <button type="submit" name="place_order" class="btn-submit w-full rounded-full border-0 bg-rose p-4 text-base font-bold text-white transition hover:bg-[#c45075]">Place Your Order</button>
     </form>
   </main>
 
@@ -872,6 +966,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     let cart = [];
     let map, marker;
     let calCurrentDate = new Date();
+    const isCheckoutPage = <?= $is_checkout_page ? 'true' : 'false' ?>;
+
+    function saveCart() {
+      localStorage.setItem('lynxprise_cart', JSON.stringify(cart));
+    }
+
+    function toggleMobileMenu(isOpen) {
+      const panel = document.getElementById('mobile-menu-panel');
+      const button = document.querySelector('.mobile-menu-button');
+      if (!panel) return;
+      panel.classList.toggle('open', isOpen);
+      document.body.classList.toggle('overflow-hidden', isOpen);
+      if (button) button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    function loadCart() {
+      try {
+        const savedCart = JSON.parse(localStorage.getItem('lynxprise_cart') || '[]');
+        cart = Array.isArray(savedCart) ? savedCart : [];
+      } catch (e) {
+        cart = [];
+      }
+      updateCartUI();
+    }
+
+    function openCartModal() {
+      const modal = document.getElementById('cart-modal');
+      if (!modal) return;
+      renderCartModal();
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeCartModal() {
+      const modal = document.getElementById('cart-modal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderCartModal() {
+      const container = document.getElementById('cart-modal-items');
+      const totalElement = document.getElementById('cart-modal-total');
+      if (!container || !totalElement) return;
+
+      if (cart.length === 0) {
+        container.innerHTML = '<p class="py-8 text-center text-sm text-[#785a50]">Your cart is empty.</p>';
+        totalElement.innerText = '₱0.00';
+        return;
+      }
+
+      let total = 0;
+      container.innerHTML = cart.map(item => {
+        const subtotal = item.price * item.qty;
+        total += subtotal;
+        return `<div class="flex items-center justify-between gap-3 rounded-xl border border-sand bg-white p-3">
+          <div><strong>${item.name}</strong><p class="text-xs text-[#785a50]">₱${item.price.toFixed(2)} x ${item.qty}</p></div>
+          <div class="text-right"><strong>₱${subtotal.toFixed(2)}</strong><br><button type="button" class="text-xs text-red-600" onclick="removeCartItem(${item.id}); renderCartModal();">Remove</button></div>
+        </div>`;
+      }).join('');
+      totalElement.innerText = '₱' + total.toFixed(2);
+    }
 
     // Custom Alert logic
     function customAlert(msg) {
@@ -950,6 +1106,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
       }
 
       updateCartUI();
+      saveCart();
+      renderCartModal();
     }
 
     function updateCartUI() {
@@ -1000,6 +1158,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
       document.getElementById('summary-total-price').innerText = '₱' + total.toFixed(2);
 
+      const countElement = document.getElementById('cart-count');
+      if (countElement) countElement.innerText = count;
+      renderCartModal();
+
       // Update counters on all open modals
       document.querySelectorAll('[id^="modal-summary-count-"]').forEach(el => {
         el.innerText = `${count} item(s)`;
@@ -1008,10 +1170,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
     function removeCartItem(id) {
       cart = cart.filter(i => i.id !== id);
+      saveCart();
       updateCartUI();
     }
 
     function goToCheckout() {
+      saveCart();
+      if (!isCheckoutPage) {
+        window.location.href = 'checkout';
+        return;
+      }
+      closeCartModal();
       document.getElementById('checkout-section').scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -1394,6 +1563,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     }
 
     window.onload = function() {
+      loadCart();
       initMaps();
       toggleFulfillmentMode();
 
@@ -1459,6 +1629,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     // Require email when choosing online payment
     document.getElementById('checkout-section').addEventListener('submit', function(e){
       const mode = parseInt(document.getElementById('mode_of_payment_input').value || '0', 10);
+      localStorage.removeItem('lynxprise_cart');
     });
 
   </script>
